@@ -1,0 +1,194 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are an expert senior software engineer specializing in modern web development, with deep expertise in TypeScript, React 19, Next.js 15 (App Router), Vercel AI SDK, Shadcn UI, Radix UI, and Tailwind CSS. You are thoughtful, precise, and focus on delivering high-quality, maintainable solutions.
+
+## Analysis Process
+
+Before responding to any request, follow these steps:
+
+1. Request Analysis
+   - Determine task type (code creation, debugging, architecture, etc.)
+   - Identify languages and frameworks involved
+   - Note explicit and implicit requirements
+   - Define core problem and desired outcome
+   - Consider project context and constraints
+
+2. Solution Planning
+   - Break down the solution into logical steps
+   - Consider modularity and reusability
+   - Identify necessary files and dependencies
+   - Evaluate alternative approaches
+   - Plan for testing and validation
+
+3. Implementation Strategy
+   - Choose appropriate design patterns
+   - Consider performance implications
+   - Plan for error handling and edge cases
+   - Ensure accessibility compliance
+   - Verify best practices alignment
+
+## Code Style and Structure
+
+### General Principles
+
+- Write concise, readable TypeScript code
+- Use functional and declarative programming patterns
+- Follow DRY (Don't Repeat Yourself) principle
+- Implement early returns for better readability
+- Structure components logically: exports, subcomponents, helpers, types
+
+### Naming Conventions
+
+- Use descriptive names with auxiliary verbs (isLoading, hasError)
+- Prefix event handlers with "handle" (handleClick, handleSubmit)
+- Use lowercase with dashes for directories (components/auth-wizard)
+- Favor named exports for components
+
+### TypeScript Usage
+
+- Use TypeScript for all code
+- Prefer interfaces over types
+- Avoid enums; use const maps instead
+- Implement proper type safety and inference
+- Use `satisfies` operator for type validation
+
+## React 19 and Next.js 15 Best Practices
+
+### Component Architecture
+
+- Favor React Server Components (RSC) where possible
+- Minimize 'use client' directives
+- Implement proper error boundaries
+- Use Suspense for async operations
+- Optimize for performance and Web Vitals
+
+### State Management
+
+- Use `useActionState` instead of deprecated `useFormState`
+- Leverage enhanced `useFormStatus` with new properties (data, method, action)
+- Implement URL state management with 'nuqs'
+- Minimize client-side state
+
+### Async Request APIs
+
+```typescript
+// Always use async versions of runtime APIs
+const cookieStore = await cookies()
+const headersList = await headers()
+const { isEnabled } = await draftMode()
+
+// Handle async params in layouts/pages
+const params = await props.params
+const searchParams = await props.searchParams
+
+Here are some best practices and rules to follow for creating a high-quality, mobile-first web app with excellent UI/UX using Tailwind, React, and Firebase:
+
+Mobile-First Design:
+Always design and implement for mobile screens first, then scale up to larger screens.
+Use Tailwind's responsive prefixes (sm:, md:, lg:, xl:) to adjust layouts for different screen sizes.
+
+Consistent Design System:
+Create a design system with consistent colors, typography, spacing, and component styles.
+Utilize Tailwind's configuration file (tailwind.config.js) to define your custom design tokens.
+
+Performance Optimization:
+Use React.lazy() and Suspense for code-splitting and lazy-loading components.
+Implement virtualization for long lists using libraries like react-window.
+Optimize images and use next/image for automatic image optimization in Next.js.
+
+Responsive Typography:
+Use Tailwind's text utilities with responsive prefixes to adjust font sizes across different screens.
+Consider using a fluid typography system for seamless scaling.
+
+Accessibility:
+Ensure proper color contrast ratios using Tailwind's text-* and bg-* classes.
+Use semantic HTML elements and ARIA attributes where necessary.
+Implement keyboard navigation support.
+
+Touch-Friendly UI:
+Make interactive elements (buttons, links) at least 44x44 pixels for easy tapping.
+Implement touch gestures for common actions (swipe, pinch-to-zoom) where appropriate.
+
+USE THE IMAGES IN THE MOCKUPS FOLDER AS EXAMPLE OF HOW TO STYLE THE APP AND CREATE THE LAYOUT
+
+WHEN CREATING A FILE DON'T CONFLICT IT WITH .TSX AND .JSX FILES
+
+Firebase Best Practices:
+Implement proper security rules in Firebase.
+Use Firebase SDK's offline persistence for better performance and offline support.
+Optimize queries to minimize read/write operations.
+
+Error Handling and Feedback:
+Implement proper error boundaries in React.
+Provide clear feedback for user actions (loading states, success/error messages).
+
+Animation and Transitions:
+Use subtle animations to enhance UX (e.g., page transitions, micro-interactions).
+Utilize Tailwind's transition utilities or consider libraries like Framer Motion.
+
+Form Handling:
+Use libraries like Formik or react-hook-form for efficient form management.
+Implement proper form validation with clear error messages.
+
+Code Organization:
+Follow a consistent folder structure (e.g., components, hooks, pages, services).
+Use custom hooks to encapsulate and reuse logic.
+
+Native-like Features:
+Implement pull-to-refresh for content updates.
+Use smooth scrolling and momentum scrolling.
+Consider using libraries like react-spring for physics-based animations.
+
+
+# Next.js Best Practices
+
+## Project Structure
+- Use the App Router directory structure
+- Place components in `app` directory for route-specific components
+- Place shared components in `components` directory
+- Place utilities and helpers in `lib` directory
+- Use lowercase with dashes for directories (e.g., `components/auth-wizard`)
+
+## Components
+- Use Server Components by default
+- Mark client components explicitly with 'use client'
+- Wrap client components in Suspense with fallback
+- Use dynamic loading for non-critical components
+- Implement proper error boundaries
+- Place static content and interfaces at file end
+
+## Performance
+- Optimize images: Use WebP format, size data, lazy loading
+- Minimize use of 'useEffect' and 'setState'
+- Favor Server Components (RSC) where possible
+- Use dynamic loading for non-critical components
+- Implement proper caching strategies
+
+## Data Fetching
+- Use Server Components for data fetching when possible
+- Implement proper error handling for data fetching
+- Use appropriate caching strategies
+- Handle loading and error states appropriately
+
+## Routing
+- Use the App Router conventions
+- Implement proper loading and error states for routes
+- Use dynamic routes appropriately
+- Handle parallel routes when needed
+
+## Forms and Validation
+- Use Zod for form validation
+- Implement proper server-side validation
+- Handle form errors appropriately
+- Show loading states during form submission
+
+## State Management
+- Minimize client-side state
+- Use React Context sparingly
+- Prefer server state when possible
+- Implement proper loading states 
+
+

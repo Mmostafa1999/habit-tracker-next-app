@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: 229, 0, 70; /* #E50046 */
+    --color-secondary: 253, 171, 158;
+    --color-accent: 255, 240, 189;
+    --color-background: 199, 219, 156;
+
+    --color-gray-50: 249, 250, 251;
+    --color-gray-100: 243, 244, 246;
+    --color-gray-200: 229, 231, 235;
+    --color-gray-300: 209, 213, 219;
+    --color-gray-400: 156, 163, 175;
+    --color-gray-500: 107, 114, 128;
+    --color-gray-600: 75, 85, 99;
+    --color-gray-700: 55, 65, 81;
+    --color-gray-800: 31, 41, 55;
+    --color-gray-900: 17, 24, 39;
+  }
+
+  .dark {
+    --color-primary:
+      229, 0, 70; /* #E50046 - keeping consistent with light mode */
+    --color-secondary: 253, 171, 158;
+    --color-accent: 255, 240, 189;
+    --color-background: 159, 179, 116;
+
+    --color-gray-50: 31, 41, 55;
+    --color-gray-100: 55, 65, 81;
+    --color-gray-200: 75, 85, 99;
+    --color-gray-300: 107, 114, 128;
+    --color-gray-400: 156, 163, 175;
+    --color-gray-500: 209, 213, 219;
+    --color-gray-600: 229, 231, 235;
+    --color-gray-700: 243, 244, 246;
+    --color-gray-800: 249, 250, 251;
+    --color-gray-900: 255, 255, 255;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+body {
+  font-family: var(--font-poppins, sans-serif);
+  background-color: rgba(var(--color-background), 0.3);
+  transition: background-color 0.3s ease;
+}
+
+
+
+/* Additional animation utilities */
+.hover-scale {
+  transition: transform 0.2s ease-in-out;
+}
+
+.hover-scale:hover {
+  transform: scale(1.03);
+}
+
+input:focus,
+button:hover {
+  animation: pulse 0.3s ease-in-out;
+}

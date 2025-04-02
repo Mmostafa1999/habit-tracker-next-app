@@ -1,0 +1,76 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+description: Guidelines for maintaining a clean, structured, and maintainable project using Next.js, TypeScript, Tailwind CSS, Firestore, Firebase Auth, React Context API, and Cloudflare Workers.
+
+globs: 
+---
+
+# Project Structure & Best Practices
+
+## Follow Next.js Standards
+- Adhere to the official Next.js project structure guidelines.
+- Reference: [Nettps://nextjs.org/docs/app/getting-started/project-structure).
+- Ensure the folder organization and conventions align with Next.js best practices.
+
+## Consistent Folder Organization
+- Follow Next.js' recommended directory layout (`app`, `components`, `lib`, `utils`, etc.).
+- Maintain clear separation between pages, components, utilities, and hooks.
+- Use meaningful and consistent naming conventions for files and directories.
+
+## Modular & Reusable Components
+- Break down UI into reusable, self-contained components.
+- Keep components small, focused, and easy to maintain.
+- Place shared UI components in a dedicated `components/` directory.
+
+## Type Safety with TypeScript
+- Use TypeScript for strict type checking and maintainability.
+- Define types and interfaces clearly in a `types/` directory when necessary.
+- Avoid `any` type; prefer explicit types and utility types from Next.js and React.
+
+## State Management
+- Use React Context API for global state management when necessary.
+- Keep state local whenever possible to minimize re-renders.
+- Structure context providers in a way that avoids unnecessary component wrapping.
+
+## API & Data Fetching
+- Use Next.js Server Actions or API routes for backend communication.
+- Prefer React Query or SWR for client-side data fetching and caching.
+- Follow Firebase best practices when interacting with Firestore and Firebase Auth.
+
+## Cloudflare Workers Integration
+- Route API requests to Cloudflare Workers where applicable.
+- Keep Cloudflare-related logic modular and separate from Next.js components.
+- Ensure Workers handle authentication securely when interacting with Firebase.
+
+## Styling with Tailwind CSS
+- Use Tailwind CSS for styling and keep class usage optimized.
+- Maintain a consistent design system using Tailwind’s theme configuration.
+- Avoid excessive utility classes by extracting styles into reusable components.
+
+## UI Enhancements
+- Use Tailwind CSS for styling with smooth animations using Framer Motion.
+- Use a modern Google Font like **"Poppins"** applied globally.
+- Ensure the app is responsive and accessible on mobile and desktop.
+- Use this custom color palette for a consistent aesthetic:
+  - **Primary**: `#E50046` (deep pink/red)
+  - **Secondary**: `#FDAB9E` (soft coral)
+  - **Accent**: `#FFF0BD` (pale yellow)
+  - **Background**: `#C7DB9C` (calming green)
+
+## Performance & Optimization
+- Use Next.js' built-in performance optimizations (`next/image`, `next/script`, etc.).
+- Implement lazy loading for images and non-critical components.
+- Optimize database queries and API calls to prevent unnecessary fetches.
+
+## Code Consistency & Maintainability
+- Follow best practices for file structure, naming, and modularization.
+- Maintain clear and well-structured code with meaningful comments where needed.
+- Regularly refactor to improve code readability and maintainability.
+
+## Testing & Validation
+- Implement unit and integration tests for key features.
+- Use Jest and React Testing Library for front-end testing.
+- Ensure code is tested against real-world usage scenarios before deployment.

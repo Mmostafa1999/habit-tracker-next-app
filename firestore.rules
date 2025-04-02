@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions for data validation and rate limiting
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function userIsOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Check if the requesting user has a verified email
+    function hasVerifiedEmail() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Allows read/write to user-specific paths with validation
+    match /users/{userId} {
+      allow read, create, update, delete: if userIsOwner(userId);
+
+      // Metadata collection for system data like rate limiting
+      match /metadata/{document=**} {
+        allow read: if userIsOwner(userId);
+      }
+
+      // Habits subcollection with validation
+      match /habits/{habitId} {
+        allow read, create, update, delete: if userIsOwner(userId);
+      }
+
+      // Categories subcollection with validation
+      match /categories/{categoryId} {
+        allow read, create, update, delete: if userIsOwner(userId);
+      }
+
+      // Achievements subcollection with verified email requirement
+      match /achievements/{achievementId} {
+        allow read: if userIsOwner(userId);
+        allow create, update: if userIsOwner(userId);
+        // No delete operation allowed to prevent users from removing achievements
+      }
+    }
+
+    // Admin collection - only admins can access
+    match /admin/{document=**} {
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Default - deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
