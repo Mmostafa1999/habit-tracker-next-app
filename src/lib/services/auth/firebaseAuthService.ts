@@ -37,14 +37,49 @@ export class FirebaseAuthService implements AuthService {
     email: string,
     password: string,
   ): Promise<ServiceResult<UserProfile>> {
+    // Basic validation
+    if (!email || !email.includes("@") || !password) {
+      console.error("Invalid email or password format");
+      return createErrorResult(
+        new ApiError(
+          "Please provide a valid email and password",
+          "auth/invalid-input",
+          400,
+        ),
+      );
+    }
+
     try {
+      console.log("Attempting to sign in with email:", email);
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password,
       );
+      console.log("Sign-in successful");
       return createSuccessResult(this.mapUserToProfile(userCredential.user));
     } catch (error: any) {
+      console.error(
+        "Firebase auth error during sign in:",
+        error.code,
+        error.message,
+      );
+
+      // Add specific handling for common auth errors
+      if (error.code === "auth/invalid-credential") {
+        return createErrorResult(
+          new ApiError("Invalid email or password", error.code, 401),
+        );
+      } else if (error.code === "auth/user-not-found") {
+        return createErrorResult(
+          new ApiError("No account found with this email", error.code, 401),
+        );
+      } else if (error.code === "auth/wrong-password") {
+        return createErrorResult(
+          new ApiError("Incorrect password", error.code, 401),
+        );
+      }
+
       return createErrorResult(
         new ApiError(
           error.message || "Failed to sign in",
@@ -104,37 +139,101 @@ export class FirebaseAuthService implements AuthService {
 
   async signInWithGoogle(): Promise<ServiceResult<UserProfile>> {
     try {
-      const userCredential = await signInWithPopup(auth, googleProvider);
+      console.log("Attempting to sign in with Google");
+
+      // Configure Google provider with custom parameters
+      googleProvider.setCustomParameters({ prompt: "select_account" });
+
+      let userCredential;
+      try {
+        // Attempt to sign in with popup
+        userCredential = await signInWithPopup(auth, googleProvider);
+      } catch (error: any) {
+        console.error("Google popup error:", error.code, error.message);
+
+        // Handle specific popup errors
+        if (
+          error.code === "auth/cancelled-popup-request" ||
+          error.code === "auth/popup-blocked" ||
+          error.code === "auth/popup-closed-by-user"
+        ) {
+          const errorMessage =
+            error.code === "auth/popup-blocked"
+              ? "Google sign-in popup was blocked. Please allow popups for this site."
+              : "Google sign-in was cancelled. Please try again.";
+
+          return createErrorResult(new ApiError(errorMessage, error.code, 400));
+        }
+
+        // For other errors, create an error result
+        return createErrorResult(
+          new ApiError(
+            error.message || "Failed to sign in with Google",
+            error.code || "auth/unknown",
+            401,
+          ),
+        );
+      }
+
+      if (!userCredential || !userCredential.user) {
+        return createErrorResult(
+          new ApiError(
+            "Failed to get user credentials from Google",
+            "auth/unknown",
+            401,
+          ),
+        );
+      }
+
+      const { user } = userCredential;
 
       // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+      const userDoc = await getDoc(doc(db, "users", user.uid));
 
       // If user doesn't exist, create a new user record
       if (!userDoc.exists()) {
-        await setDoc(doc(db, "users", userCredential.user.uid), {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          displayName: userCredential.user.displayName,
-          photoURL: userCredential.user.photoURL,
-          emailVerified: userCredential.user.emailVerified,
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          emailVerified: user.emailVerified,
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
         });
 
         // Initialize user data (achievements, etc.)
-        const profile = this.mapUserToProfile(userCredential.user);
+        const profile = this.mapUserToProfile(user);
         await this.initializeUserData(profile);
       } else {
         // Update last login time
         await setDoc(
-          doc(db, "users", userCredential.user.uid),
+          doc(db, "users", user.uid),
           { lastLogin: serverTimestamp() },
           { merge: true },
         );
       }
 
-      return createSuccessResult(this.mapUserToProfile(userCredential.user));
+      console.log("Google sign-in successful");
+      return createSuccessResult(this.mapUserToProfile(user));
     } catch (error: any) {
+      console.error(
+        "Firebase auth error during Google sign-in:",
+        error.code,
+        error.message,
+      );
+
+      // Handle specific auth errors
+      if (error.code === "auth/account-exists-with-different-credential") {
+        return createErrorResult(
+          new ApiError(
+            "An account already exists with the same email but different sign-in method.",
+            error.code,
+            400,
+          ),
+        );
+      }
+
       return createErrorResult(
         new ApiError(
           error.message || "Failed to sign in with Google",

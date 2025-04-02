@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/context/AuthContext";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
-import { Cog6ToothIcon, MoonIcon, SunIcon } from "@heroicons/react/24/outline";
+import { Cog6ToothIcon } from "@heroicons/react/24/outline";
 
 interface DashboardHeaderProps {
   title?: string;
@@ -51,7 +51,7 @@ export default function DashboardHeader({ title, subtitle }: DashboardHeaderProp
             />
           </div>
 
-         
+
 
           <button
             className="p-2 rounded-full text-gray-600  hover:text-gray-900  hover:bg-gray-100  transition-colors"

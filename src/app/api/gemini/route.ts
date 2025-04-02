@@ -71,10 +71,11 @@ const rateLimiter: Record<string, { count: number; timestamp: number }> = {};
 export async function POST(request: NextRequest) {
   try {
     // Check for API key
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const apiKey = process.env.GEMINI_API_KEY || "";
+    if (!apiKey || apiKey.trim() === "") {
+      console.error("Missing Gemini API key in environment variables");
       return NextResponse.json(
-        { error: "API configuration error" },
+        { error: "API configuration error - Gemini API key is not configured" },
         { status: 500 },
       );
     }
@@ -277,4 +278,4 @@ Reply with friendly, concise, and helpful responses. Focus on being supportive a
   fullPrompt += `\n--- USER QUESTION ---\n${prompt}`;
 
   return fullPrompt;
-} 
+}

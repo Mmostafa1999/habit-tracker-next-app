@@ -47,9 +47,7 @@ function checkRateLimit(ip: string): { allowed: boolean; message?: string } {
 }
 
 // Get CSRF token
-export async function GET(request: NextRequest) {
-  const sessionCookie = cookies().get("__session")?.value;
-
+export async function GET() {
   // Generate a new CSRF token
   const csrfToken = generateCsrfToken();
   const now = Date.now();
@@ -59,7 +57,8 @@ export async function GET(request: NextRequest) {
   CSRF_TOKENS.set(csrfToken, { token: csrfToken, expires });
 
   // Set as HttpOnly cookie and also return in response
-  cookies().set("csrf_token", csrfToken, {
+  const cookieStore = cookies();
+  cookieStore.set("csrf_token", csrfToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
@@ -77,8 +76,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Get client IP for rate limiting
-    const ip =
-      request.ip || request.headers.get("x-forwarded-for") || "unknown";
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
 
     // Check rate limiting
     const rateLimitCheck = checkRateLimit(ip);
@@ -90,7 +88,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify CSRF token
-    const csrfTokenFromCookie = cookies().get("csrf_token")?.value;
+    const cookieStore = cookies();
+    const csrfTokenFromCookie = cookieStore.get("csrf_token")?.value;
     const { csrfToken, idToken } = await request.json();
 
     if (!csrfToken || csrfToken !== csrfTokenFromCookie) {
@@ -121,7 +120,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Set cookie
-    cookies().set("__session", sessionCookie, {
+    cookieStore.set("__session", sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
@@ -140,9 +139,10 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle logout
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   // Clear the session cookie
-  cookies().set("__session", "", {
+  const cookieStore = cookies();
+  cookieStore.set("__session", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
@@ -151,7 +151,7 @@ export async function DELETE(request: NextRequest) {
   });
 
   // Clear the CSRF token cookie
-  cookies().set("csrf_token", "", {
+  cookieStore.set("csrf_token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",

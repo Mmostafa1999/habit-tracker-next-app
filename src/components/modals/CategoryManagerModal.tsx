@@ -13,7 +13,6 @@ import toast from "react-hot-toast";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { useAuth } from "@/lib/context/AuthContext";
-import { getHabitService } from "@/lib/services/serviceFactory";
 
 type CategoryManagerModalProps = {
   isOpen: boolean;
@@ -252,7 +251,7 @@ export default function CategoryManagerModal({
     try {
       // Use the context function which now returns the result
       const result = await addCategory(newCategoryName, newCategoryColor);
-      
+
       // Check if there was an error
       if (result && result.result === 'ERROR') {
         if (result.error.code === 'categories/duplicate-name') {

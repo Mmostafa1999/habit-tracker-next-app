@@ -118,7 +118,7 @@ export function endOfMonth(date: Date): Date {
  * Convert a Firestore timestamp to an ISO date string
  */
 export function timestampToISOString(
-  timestamp: any | null | undefined
+  timestamp: Timestamp | Date | null | undefined
 ): string {
   if (!timestamp) {
     return new Date().toISOString();

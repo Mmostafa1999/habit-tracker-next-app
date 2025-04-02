@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RecaptchaVerifier, User } from 'firebase/auth';
+import { RecaptchaVerifier, User, AuthError } from 'firebase/auth';
 import { auth, mfa } from '@/lib/firebase/config';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -20,14 +20,14 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
   const [error, setError] = useState<string | null>(null);
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // Initialize recaptcha when component mounts
   useEffect(() => {
     // Clean up previous instances if they exist
     if (recaptchaVerifierRef.current) {
       recaptchaVerifierRef.current.clear();
     }
-    
+
     if (recaptchaContainerRef.current && typeof window !== 'undefined') {
       recaptchaVerifierRef.current = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
         size: 'normal',
@@ -39,35 +39,35 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
           setError('reCAPTCHA has expired. Please refresh the page and try again.');
         }
       });
-      
+
       recaptchaVerifierRef.current.render();
     }
-    
+
     return () => {
       if (recaptchaVerifierRef.current) {
         recaptchaVerifierRef.current.clear();
       }
     };
   }, []);
-  
+
   // Handle phone number submission
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!phoneNumber || !phoneNumber.match(/^\+[0-9]{10,15}$/)) {
       setError('Please enter a valid phone number with country code (e.g., +1234567890)');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       // Make sure recaptcha verifier is initialized
       if (!recaptchaVerifierRef.current) {
         throw new Error('reCAPTCHA not initialized');
       }
-      
+
       // Enroll in MFA with phone number
       if (mfa) {
         const verificationIdResult = await mfa.enrollPhoneNumber(
@@ -75,17 +75,18 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
           phoneNumber,
           recaptchaVerifierRef.current
         );
-        
+
         setVerificationId(verificationIdResult);
         setStep(2);
         toast.success('Verification code sent to your phone');
       } else {
         throw new Error('Multi-factor authentication is not available');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending verification code:', error);
-      setError(error.message || 'Failed to send verification code');
-      
+      const authError = error as AuthError;
+      setError(authError.message || 'Failed to send verification code');
+
       // Refresh the recaptcha
       recaptchaVerifierRef.current?.clear();
       if (recaptchaContainerRef.current) {
@@ -98,29 +99,29 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
       setLoading(false);
     }
   };
-  
+
   // Handle verification code submission
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!verificationCode || verificationCode.length < 6) {
       setError('Please enter a valid verification code');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       if (!verificationId) {
         throw new Error('Verification session expired');
       }
-      
+
       // Complete MFA enrollment
       if (mfa) {
         await mfa.completeEnrollment(user, verificationId, verificationCode);
         toast.success('Multi-factor authentication successfully enabled');
-        
+
         // Call the onComplete callback if provided
         if (onComplete) {
           onComplete();
@@ -128,14 +129,15 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
       } else {
         throw new Error('Multi-factor authentication is not available');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error verifying code:', error);
-      setError(error.message || 'Failed to verify code');
+      const authError = error as AuthError;
+      setError(authError.message || 'Failed to verify code');
     } finally {
       setLoading(false);
     }
   };
-  
+
   return (
     <div className="bg-white  p-6 rounded-lg shadow-md max-w-md mx-auto">
       <div className="text-center mb-6">
@@ -146,18 +148,18 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
           {step === 1 ? 'Enable Two-Factor Authentication' : 'Verify Your Phone'}
         </h2>
         <p className="mt-2 text-sm text-gray-600 ">
-          {step === 1 
-            ? 'Add an extra layer of security to your account by enabling 2FA' 
+          {step === 1
+            ? 'Add an extra layer of security to your account by enabling 2FA'
             : 'Enter the verification code sent to your phone'}
         </p>
       </div>
-      
+
       {error && (
         <div className="mb-4 p-3 bg-red-100  border border-red-200  rounded text-red-700  text-sm">
           {error}
         </div>
       )}
-      
+
       {step === 1 ? (
         <form onSubmit={handleSendCode} className="space-y-4">
           <Input
@@ -172,17 +174,17 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
             required
             error={error}
           />
-          
+
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700  mb-2">
               Complete the reCAPTCHA
             </label>
-            <div 
-              ref={recaptchaContainerRef} 
+            <div
+              ref={recaptchaContainerRef}
               className="recaptcha-container flex justify-center"
             ></div>
           </div>
-          
+
           <Button
             type="submit"
             fullWidth
@@ -207,7 +209,7 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
             required
             error={error}
           />
-          
+
           <div className="flex space-x-4">
             <Button
               type="button"
@@ -218,7 +220,7 @@ export default function MfaEnrollment({ user, onComplete }: MfaEnrollmentProps) 
             >
               Back
             </Button>
-            
+
             <Button
               type="submit"
               loading={loading}

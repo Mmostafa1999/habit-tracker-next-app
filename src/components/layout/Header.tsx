@@ -3,7 +3,6 @@
 import { useAuth } from "@/lib/context/AuthContext";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FiMoon, FiSun } from "react-icons/fi";
 
 export default function Header() {
   const pathname = usePathname();
@@ -40,20 +39,18 @@ export default function Header() {
                 <>
                   <Link
                     href="/auth/login"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                      isActive("/auth/login")
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive("/auth/login")
                         ? "text-primary bg-primary/5 "
                         : "text-gray-700  hover:text-primary  hover:bg-primary/5 "
-                    }`}>
+                      }`}>
                     Login
                   </Link>
                   <Link
                     href="/auth/signup"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                      isActive("/auth/signup")
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive("/auth/signup")
                         ? "text-primary bg-primary/5 "
                         : "text-gray-700  hover:text-primary  hover:bg-primary/5 "
-                    }`}>
+                      }`}>
                     Sign Up
                   </Link>
                 </>
@@ -61,11 +58,10 @@ export default function Header() {
                 <>
                   <Link
                     href="/dashboard"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                      isActive("/dashboard")
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive("/dashboard")
                         ? "text-primary bg-primary/5 "
                         : "text-gray-700  hover:text-primary  hover:bg-primary/5 "
-                    }`}>
+                      }`}>
                     Dashboard
                   </Link>
                   <button
@@ -77,7 +73,7 @@ export default function Header() {
               )}
             </nav>
 
-           
+
           </div>
         </div>
       </div>

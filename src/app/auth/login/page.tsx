@@ -12,7 +12,7 @@ import { FiLock, FiMail } from "react-icons/fi";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>(
     {},
   );
   const [loading, setLoading] = useState(false);
@@ -44,9 +44,24 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
+      setErrors({});
       await signIn(email, password);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
+      // Handle different types of errors
+      if (error.code === "auth/invalid-credential" ||
+        error.code === "auth/user-not-found" ||
+        error.code === "auth/wrong-password") {
+        setErrors({ general: "Invalid email or password" });
+      } else if (error.code === "auth/user-disabled") {
+        setErrors({ general: "This account has been disabled" });
+      } else if (error.code === "auth/too-many-requests") {
+        setErrors({ general: "Too many failed attempts. Try again later" });
+      } else if (error.code === "auth/network-request-failed") {
+        setErrors({ general: "Network error. Check your connection" });
+      } else {
+        setErrors({ general: error.message || "An error occurred during login" });
+      }
     } finally {
       setLoading(false);
     }
@@ -55,9 +70,30 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
+      setErrors({});
       await signInWithGoogle();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google sign in error:", error);
+
+      // Handle specific Google sign-in errors
+      if (error.code === "auth/cancelled-popup-request" ||
+        error.code === "auth/popup-closed-by-user") {
+        setErrors({
+          general: "Google sign-in was cancelled. Please try again."
+        });
+      } else if (error.code === "auth/popup-blocked") {
+        setErrors({
+          general: "Google sign-in popup was blocked. Please allow popups for this site."
+        });
+      } else if (error.code === "auth/account-exists-with-different-credential") {
+        setErrors({
+          general: "An account already exists with this email but with a different sign-in method."
+        });
+      } else {
+        setErrors({
+          general: error.message || "An error occurred during Google sign-in. Please try again."
+        });
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -79,6 +115,12 @@ export default function LoginPage() {
           </div>
 
           <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+            {errors.general && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">
+                {errors.general}
+              </div>
+            )}
+
             <Input
               id="email"
               name="email"
@@ -113,7 +155,7 @@ export default function LoginPage() {
               className="transition-all duration-300 ease-in-out"
             />
 
-            <div className="flex items-center justify-end">
+            <div>
               <Link
                 href="/auth/forgot-password"
                 className="text-sm font-medium text-[#E50046] hover:text-[#E50046]/90 transition-colors">

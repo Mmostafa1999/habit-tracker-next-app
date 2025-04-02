@@ -59,6 +59,18 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+// Log whether env vars are properly loaded without exposing sensitive info
+console.log("Firebase config loaded:", {
+  apiKeyPresent: !!firebaseConfig.apiKey,
+  authDomainPresent: !!firebaseConfig.authDomain,
+  projectIdPresent: !!firebaseConfig.projectId,
+  configComplete:
+    !!firebaseConfig.apiKey &&
+    !!firebaseConfig.authDomain &&
+    !!firebaseConfig.projectId &&
+    !!firebaseConfig.appId,
+});
+
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);

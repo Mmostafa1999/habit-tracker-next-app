@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserProfile } from "../services/auth/authService";
 import { getAuthService } from "../services/serviceFactory";
-import { showInfo, showSuccess } from "../utils/errorHandling";
+import { ApiError, handleError, showInfo, showSuccess } from "../utils/errorHandling";
 
 type AuthContextType = {
   user: UserProfile | null;
@@ -47,7 +47,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (result.error) {
         throw result.error;
       }
-    } catch (error) {
+    } catch (error: Error | ApiError) {
+      console.error("Authentication error details:", error);
+      // Check for specific Firebase Auth errors and handle them accordingly
+      if ('code' in error) {
+        if (error.code === "auth/invalid-credential" ||
+          error.code === "auth/user-not-found" ||
+          error.code === "auth/wrong-password") {
+          showInfo("Invalid email or password. Please try again.");
+        } else if (error.code === "auth/user-disabled") {
+          showInfo("This account has been disabled. Please contact support.");
+        } else if (error.code === "auth/too-many-requests") {
+          showInfo("Too many failed login attempts. Please try again later or reset your password.");
+        } else {
+          handleError(error);
+        }
+      } else {
+        handleError(error);
+      }
       setLoading(false);
       throw error;
     }

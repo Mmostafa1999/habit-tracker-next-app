@@ -15,8 +15,8 @@ import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import HabitEditModal from "./HabitEditModal";
 import LoadingSpinner from "../ui/LoadingSpinner";
 
-// Days of the week for selecting in weekly habits
-const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// Import Habit type from the service layer where it's defined correctly
+import { Habit } from "@/lib/services/habits/habitService";
 
 // Modify the HabitList component to accept selectedDate prop
 export default function HabitList({ selectedDate }: { selectedDate?: Date }) {
@@ -32,15 +32,15 @@ export default function HabitList({ selectedDate }: { selectedDate?: Date }) {
   } = useHabits();
 
   const [animatingHabit, setAnimatingHabit] = useState<string | null>(null);
-  const [selectedDateHabits, setSelectedDateHabits] = useState<any[]>([]);
+  const [selectedDateHabits, setSelectedDateHabits] = useState<Habit[]>([]);
 
   // For delete confirmation
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [habitToDelete, setHabitToDelete] = useState<any | null>(null);
+  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
 
   // For edit modal
   const [showEditModal, setShowEditModal] = useState(false);
-  const [habitToEdit, setHabitToEdit] = useState<any | null>(null);
+  const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
 
   // Get category color by category name
   const getCategoryColor = (categoryName: string): string => {
@@ -121,7 +121,7 @@ export default function HabitList({ selectedDate }: { selectedDate?: Date }) {
   };
 
   // Prepare to delete a habit (show confirmation)
-  const handlePrepareDelete = (habit: any) => {
+  const handlePrepareDelete = (habit: Habit) => {
     // Only allow deletion for today's or past habits
     if (isSelectedDateFuture) return;
 
@@ -139,7 +139,7 @@ export default function HabitList({ selectedDate }: { selectedDate?: Date }) {
   };
 
   // Edit a habit (show edit modal)
-  const handleEditHabit = (habit: any) => {
+  const handleEditHabit = (habit: Habit) => {
     // Only allow editing for today's or past habits
     if (isSelectedDateFuture) return;
 
@@ -148,7 +148,7 @@ export default function HabitList({ selectedDate }: { selectedDate?: Date }) {
   };
 
   // Save edited habit
-  const handleSaveHabit = async (updatedHabit: any) => {
+  const handleSaveHabit = async (updatedHabit: Habit) => {
     if (habitToEdit) {
       await updateHabit(habitToEdit.id, updatedHabit);
       setShowEditModal(false);

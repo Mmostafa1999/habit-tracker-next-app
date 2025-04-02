@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
     );
 
     // Set the new session cookie with updated expiry
-    const cookieStore = await cookies();
     cookieStore.set("__session", newSessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
