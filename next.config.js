@@ -32,14 +32,14 @@ const nextConfig = {
   compress: true, // Enable compression for performance
   productionBrowserSourceMaps: false, // Disable source maps in production
 
-  // ESLint configuration to disable problematic rules
+  // Enable ESLint during builds
   eslint: {
-    ignoreDuringBuilds: true, // Skip ESLint during builds
+    ignoreDuringBuilds: false, // Enable ESLint during builds
   },
 
-  // Disable TypeScript type checking for now
+  // Enable TypeScript type checking
   typescript: {
-    ignoreBuildErrors: true, // Skip type checking during builds
+    ignoreBuildErrors: false, // Enable type checking during builds
   },
 
   // Webpack Optimization

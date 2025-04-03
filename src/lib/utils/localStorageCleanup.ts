@@ -1,8 +1,13 @@
 /**
- * Utility function to clean up Firebase-related data from localStorage
+ * Utility for Firebase localStorage and IndexedDB cleanup
  * This helps protect authentication tokens from XSS attacks
  */
-export const cleanFirebaseLocalStorage = (): void => {
+
+/**
+ * Cleans up Firebase-related data from localStorage and IndexedDB
+ * @param skipAuthKeys - Whether to skip authentication-related keys (useful during auth flows)
+ */
+export const cleanFirebaseLocalStorage = (skipAuthKeys = false): void => {
   if (typeof window === "undefined") return;
 
   try {
@@ -19,17 +24,17 @@ export const cleanFirebaseLocalStorage = (): void => {
           key.includes("firestore") ||
           key.includes("auth"))
       ) {
-        // Skip keys needed for Google auth redirects
+        // Skip keys needed for Google auth redirects when needed
         if (
-          key.includes("pendingRedirect") ||
-          key.includes("redirectEvent") ||
-          key.includes("authEvent")
+          skipAuthKeys &&
+          (key.includes("pendingRedirect") ||
+            key.includes("redirectEvent") ||
+            key.includes("authEvent"))
         ) {
           continue;
         }
 
         keysToRemove.push(key);
-        
       }
     }
 
@@ -42,11 +47,10 @@ export const cleanFirebaseLocalStorage = (): void => {
       }
     });
 
-   
     // Clear Firebase-related IndexedDB databases if possible
     // But skip this during auth processes
     const isAuthRedirect = document.referrer.includes("accounts.google.com");
-    if (!isAuthRedirect) {
+    if (!isAuthRedirect && !skipAuthKeys) {
       const idbDatabases = [
         "firebaseLocalStorageDb",
         "firebase-heartbeat-database",
@@ -60,9 +64,21 @@ export const cleanFirebaseLocalStorage = (): void => {
           console.warn(`Failed to delete IndexedDB database: ${dbName}`, e);
         }
       });
-    } else {
     }
   } catch (e) {
     console.error("Error cleaning Firebase localStorage data:", e);
   }
 };
+
+/**
+ * Self-executing function to clean storage immediately when imported
+ * This should be imported before any Firebase code runs
+ */
+export const initializeStorageCleanup = (): void => {
+  cleanFirebaseLocalStorage(true); // Skip auth keys on initial cleanup
+};
+
+// For backwards compatibility with existing import in client-layout.tsx
+if (typeof window !== "undefined") {
+  initializeStorageCleanup();
+}

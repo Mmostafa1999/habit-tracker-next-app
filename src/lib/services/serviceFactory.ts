@@ -79,8 +79,10 @@ export async function initializeServices(): Promise<void> {
   // Initialize other services as needed
 }
 
+// Reset services is kept for testing purposes only
 /**
  * Reset all services (mainly used for testing)
+ * @internal This should only be used in test environments
  */
 export function resetServices(): void {
   authService = null;
