@@ -1,4 +1,4 @@
-import { ServiceResult, BaseService } from "../common/types";
+import { BaseService, ServiceResult } from "../common/types";
 
 export interface UserProfile {
   uid: string;
@@ -12,23 +12,35 @@ export interface UserProfile {
 
 export interface AuthService extends BaseService {
   // Authentication methods
-  signInWithEmail(email: string, password: string): Promise<ServiceResult<UserProfile>>;
-  signUpWithEmail(email: string, password: string, displayName?: string): Promise<ServiceResult<UserProfile>>;
+  signInWithEmail(
+    email: string,
+    password: string,
+  ): Promise<ServiceResult<UserProfile>>;
+  signUpWithEmail(
+    email: string,
+    password: string,
+    displayName?: string,
+  ): Promise<ServiceResult<UserProfile>>;
   signInWithGoogle(): Promise<ServiceResult<UserProfile>>;
   signOut(): Promise<ServiceResult<void>>;
   resetPassword(email: string): Promise<ServiceResult<void>>;
-  
+
   // User profile methods
   getCurrentUser(): Promise<ServiceResult<UserProfile | null>>;
-  updateUserProfile(data: Partial<UserProfile>): Promise<ServiceResult<UserProfile>>;
-  
+  updateUserProfile(
+    data: Partial<UserProfile>,
+  ): Promise<ServiceResult<UserProfile>>;
+
   // Token and verification methods
   verifyToken(): Promise<ServiceResult<boolean>>;
   getToken(): Promise<ServiceResult<string | null>>;
-  
+
   // Auth state
   onAuthStateChanged(callback: (user: UserProfile | null) => void): () => void;
-  
+
+  // Redirect handling
+  handleRedirectResult(): Promise<ServiceResult<UserProfile | null>>;
+
   // User data initialization
   initializeUserData(user: UserProfile): Promise<ServiceResult<void>>;
-} 
+}

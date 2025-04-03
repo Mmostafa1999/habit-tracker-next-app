@@ -1,11 +1,11 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
-  browserLocalPersistence,
   browserPopupRedirectResolver,
   createUserWithEmailAndPassword,
   getAuth,
   getRedirectResult,
   GoogleAuthProvider,
+  inMemoryPersistence,
   multiFactor,
   onAuthStateChanged,
   PhoneAuthProvider,
@@ -98,10 +98,13 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Set persistence to local to avoid session issues
-setPersistence(auth, browserLocalPersistence).catch(error => {
-  console.error("Error setting auth persistence:", error);
-});
+// Set persistence to inMemory instead of localStorage to prevent security risks
+// Our custom cookie-based authentication will handle persistence instead
+if (typeof window !== "undefined") {
+  setPersistence(auth, inMemoryPersistence).catch(error => {
+    console.error("Error setting auth persistence:", error);
+  });
+}
 
 // Function to initialize MFA for the user
 const initMultiFactor = (authInstance: typeof auth) => {

@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserProfile } from "../services/auth/authService";
 import { getAuthService } from "../services/serviceFactory";
-import { ApiError, handleError, showInfo, showSuccess } from "../utils/errorHandling";
+import { handleError, showInfo, showSuccess } from "../utils/errorHandling";
+import { cleanFirebaseLocalStorage } from "../utils/localStorageCleanup";
+import { ApiError } from "../services/common/types";
+import { getRedirectResult } from "../firebase/config";
 
 type AuthContextType = {
   user: UserProfile | null;
@@ -25,6 +28,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authService = getAuthService();
 
   useEffect(() => {
+    // Clean localStorage of any Firebase data on initial load
+    cleanFirebaseLocalStorage();
+
+    // Check for redirect results first (for Google sign-in)
+    const checkRedirectResult = async () => {
+      try {
+        // This handles the redirect result from Google sign-in
+        const redirectResult = await authService.handleRedirectResult();
+        if (redirectResult.result === "SUCCESS" && redirectResult.data) {
+          showSuccess("Signed in with Google successfully!");
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        console.error("Error handling redirect result:", error);
+      }
+    };
+
+    // Call the redirect handler
+    checkRedirectResult();
+
     // Handle auth state changes
     const unsubscribe = authService.onAuthStateChanged((profile) => {
       setUser(profile);
@@ -34,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);

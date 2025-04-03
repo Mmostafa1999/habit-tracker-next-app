@@ -9,6 +9,7 @@ import {
   signOut as fbSignOut,
   updateProfile as fbUpdateProfile,
   getDoc,
+  getRedirectResult,
   googleProvider,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -16,9 +17,11 @@ import {
   setDoc,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   writeBatch,
 } from "../../firebase/config";
 import { defaultAchievements } from "../../utils/achievementUtils";
+import { cleanFirebaseLocalStorage } from "../../utils/localStorageCleanup";
 import {
   ApiError,
   ServiceResult,
@@ -53,7 +56,8 @@ const verifyAuth = async (): Promise<boolean> => {
 
 export class FirebaseAuthService implements AuthService {
   async initialize(): Promise<void> {
-    // Nothing needed for init
+    // Clean any Firebase data from localStorage on initialization
+    cleanFirebaseLocalStorage();
     return Promise.resolve();
   }
 
@@ -181,84 +185,58 @@ export class FirebaseAuthService implements AuthService {
       // Configure Google provider with custom parameters
       googleProvider.setCustomParameters({ prompt: "select_account" });
 
-      let userCredential;
+      // Check if this is a sign-in redirect result first
+      const result = await getRedirectResult(auth);
+
+      if (result && result.user) {
+        // User is signing in after a redirect
+        const { user } = result;
+
+        // Process the successful sign-in
+        await this.processGoogleSignIn(user);
+
+        return createSuccessResult(this.mapUserToProfile(user));
+      }
+
+      // If we're not handling a redirect result, start a new sign-in flow
       try {
-        // Attempt to sign in with popup
-        userCredential = await signInWithPopup(auth, googleProvider);
-      } catch (error: any) {
-        console.error("Google popup error:", error.code, error.message);
+        // Try popup first as it provides better UX when it works
+        const userCredential = await signInWithPopup(auth, googleProvider);
+        const { user } = userCredential;
 
-        // Handle specific popup errors
+        // Process the successful sign-in
+        await this.processGoogleSignIn(user);
+
+        return createSuccessResult(this.mapUserToProfile(user));
+      } catch (popupError: any) {
+        console.log(
+          "Popup authentication failed, trying redirect:",
+          popupError.code,
+        );
+
+        // If popup fails, fall back to redirect
         if (
-          error.code === "auth/cancelled-popup-request" ||
-          error.code === "auth/popup-blocked" ||
-          error.code === "auth/popup-closed-by-user"
+          popupError.code === "auth/cancelled-popup-request" ||
+          popupError.code === "auth/popup-blocked" ||
+          popupError.code === "auth/popup-closed-by-user"
         ) {
-          const errorMessage =
-            error.code === "auth/popup-blocked"
-              ? "Google sign-in popup was blocked. Please allow popups for this site."
-              : "Google sign-in was cancelled. Please try again.";
+          // Start redirect-based sign-in as fallback
+          await signInWithRedirect(auth, googleProvider);
 
-          return createErrorResult(new ApiError(errorMessage, error.code, 400));
+          // This function will not return immediately as the page will redirect
+          // The result will be handled when the page loads again
+          return createSuccessResult({
+            uid: "",
+            email: null,
+            displayName: null,
+            photoURL: null,
+            emailVerified: false,
+          } as UserProfile);
         }
 
-        // For other errors, create an error result
-        return createErrorResult(
-          new ApiError(
-            error.message || "Failed to sign in with Google",
-            error.code || "auth/unknown",
-            401,
-          ),
-        );
+        // For other errors, propagate them
+        throw popupError;
       }
-
-      if (!userCredential || !userCredential.user) {
-        return createErrorResult(
-          new ApiError(
-            "Failed to get user credentials from Google",
-            "auth/unknown",
-            401,
-          ),
-        );
-      }
-
-      const { user } = userCredential;
-
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-
-      // If user doesn't exist, create a new user record
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          emailVerified: user.emailVerified,
-          createdAt: serverTimestamp(),
-          lastLogin: serverTimestamp(),
-        });
-
-        // Initialize user data (achievements, etc.)
-        const profile = this.mapUserToProfile(user);
-        await this.initializeUserData(profile);
-      } else {
-        // Update last login time
-        await setDoc(
-          doc(db, "users", user.uid),
-          { lastLogin: serverTimestamp() },
-          { merge: true },
-        );
-      }
-
-      // Get the Firebase ID token
-      const idToken = await user.getIdToken();
-
-      // Save token in a secure HTTP-only cookie via API call
-      await this.setAuthCookies(idToken);
-
-      console.log("Google sign-in successful");
-      return createSuccessResult(this.mapUserToProfile(user));
     } catch (error: any) {
       console.error(
         "Firebase auth error during Google sign-in:",
@@ -294,6 +272,9 @@ export class FirebaseAuthService implements AuthService {
       // Clear auth cookies via API call
       await this.clearAuthCookies();
 
+      // Clean up any Firebase data stored in localStorage
+      cleanFirebaseLocalStorage();
+
       return createSuccessResult(undefined);
     } catch (error: any) {
       return createErrorResult(
@@ -303,6 +284,11 @@ export class FirebaseAuthService implements AuthService {
         ),
       );
     }
+  }
+
+  // Clear any Firebase-related data from localStorage
+  private clearLocalStorageData(): void {
+    cleanFirebaseLocalStorage();
   }
 
   async resetPassword(email: string): Promise<ServiceResult<void>> {
@@ -512,5 +498,80 @@ export class FirebaseAuthService implements AuthService {
       photoURL: user.photoURL,
       emailVerified: user.emailVerified,
     };
+  }
+
+  // Helper method to process Google sign-in user record
+  private async processGoogleSignIn(user: User): Promise<void> {
+    // Check if user exists in Firestore
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+
+    // If user doesn't exist, create a new user record
+    if (!userDoc.exists()) {
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+      });
+
+      // Initialize user data (achievements, etc.)
+      const profile = this.mapUserToProfile(user);
+      await this.initializeUserData(profile);
+    } else {
+      // Update last login time
+      await setDoc(
+        doc(db, "users", user.uid),
+        { lastLogin: serverTimestamp() },
+        { merge: true },
+      );
+    }
+
+    // Get the Firebase ID token
+    const idToken = await user.getIdToken();
+
+    // Save token in a secure HTTP-only cookie via API call
+    await this.setAuthCookies(idToken);
+  }
+
+  /**
+   * Handles redirect-based authentication results (e.g., from Google sign-in)
+   * This should be called when the application loads to handle any pending
+   * authentication redirects.
+   */
+  async handleRedirectResult(): Promise<ServiceResult<UserProfile | null>> {
+    try {
+      // Get the redirect result
+      const result = await getRedirectResult(auth);
+
+      // If there's no result, there was no pending redirect
+      if (!result) {
+        return createSuccessResult(null);
+      }
+
+      // We have a successful redirect login
+      const { user } = result;
+
+      // Process the successful sign-in
+      await this.processGoogleSignIn(user);
+
+      console.log("Redirect sign-in successful");
+      return createSuccessResult(this.mapUserToProfile(user));
+    } catch (error: any) {
+      console.error(
+        "Error handling redirect result:",
+        error.code,
+        error.message,
+      );
+      return createErrorResult(
+        new ApiError(
+          error.message || "Failed to complete sign-in redirect",
+          error.code || "auth/unknown",
+          401,
+        ),
+      );
+    }
   }
 }

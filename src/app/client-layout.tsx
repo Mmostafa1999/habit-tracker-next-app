@@ -1,5 +1,8 @@
 "use client";
 
+// Import this first to ensure it runs before any Firebase code
+import "@/lib/utils/preventLocalStorageLeaks";
+
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
