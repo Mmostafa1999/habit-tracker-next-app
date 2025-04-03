@@ -9,7 +9,6 @@
   if (typeof window === "undefined") return;
 
   try {
-    console.log("Cleaning up Firebase localStorage data on module load...");
 
     // Clear all Firebase-related localStorage items
     const keysToRemove: string[] = [];
@@ -33,7 +32,6 @@
     keysToRemove.forEach(key => {
       try {
         localStorage.removeItem(key);
-        console.log(`Preventing localStorage leak: Removed ${key}`);
       } catch (e) {
         console.warn(`Failed to remove item from localStorage: ${key}`, e);
       }

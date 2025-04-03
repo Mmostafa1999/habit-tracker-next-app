@@ -25,14 +25,11 @@ export const cleanFirebaseLocalStorage = (): void => {
           key.includes("redirectEvent") ||
           key.includes("authEvent")
         ) {
-          console.log(`Preserving Google auth key: ${key}`);
           continue;
         }
 
         keysToRemove.push(key);
-        console.log(
-          `Found Firebase-related localStorage key to remove: ${key}`,
-        );
+        
       }
     }
 
@@ -40,18 +37,12 @@ export const cleanFirebaseLocalStorage = (): void => {
     keysToRemove.forEach(key => {
       try {
         localStorage.removeItem(key);
-        console.log(`Removed localStorage key: ${key}`);
       } catch (e) {
         console.warn(`Failed to remove item from localStorage: ${key}`, e);
       }
     });
 
-    // For debugging: Log all keys that still exist after cleanup
-    console.log("Remaining localStorage keys after cleanup:");
-    for (let i = 0; i < localStorage.length; i++) {
-      console.log(`- ${localStorage.key(i)}`);
-    }
-
+   
     // Clear Firebase-related IndexedDB databases if possible
     // But skip this during auth processes
     const isAuthRedirect = document.referrer.includes("accounts.google.com");
@@ -65,13 +56,11 @@ export const cleanFirebaseLocalStorage = (): void => {
       idbDatabases.forEach(dbName => {
         try {
           indexedDB.deleteDatabase(dbName);
-          console.log(`Deleted IndexedDB database: ${dbName}`);
         } catch (e) {
           console.warn(`Failed to delete IndexedDB database: ${dbName}`, e);
         }
       });
     } else {
-      console.log("Skipping IndexedDB cleanup due to ongoing auth redirect");
     }
   } catch (e) {
     console.error("Error cleaning Firebase localStorage data:", e);

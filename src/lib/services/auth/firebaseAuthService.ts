@@ -78,13 +78,11 @@ export class FirebaseAuthService implements AuthService {
     }
 
     try {
-      console.log("Attempting to sign in with email:", email);
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password,
       );
-      console.log("Sign-in successful");
 
       // Get the Firebase ID token
       const idToken = await userCredential.user.getIdToken();
@@ -180,7 +178,6 @@ export class FirebaseAuthService implements AuthService {
 
   async signInWithGoogle(): Promise<ServiceResult<UserProfile>> {
     try {
-      console.log("Attempting to sign in with Google");
 
       // Configure Google provider with custom parameters
       googleProvider.setCustomParameters({ prompt: "select_account" });
@@ -209,10 +206,7 @@ export class FirebaseAuthService implements AuthService {
 
         return createSuccessResult(this.mapUserToProfile(user));
       } catch (popupError: any) {
-        console.log(
-          "Popup authentication failed, trying redirect:",
-          popupError.code,
-        );
+        
 
         // If popup fails, fall back to redirect
         if (
@@ -557,7 +551,6 @@ export class FirebaseAuthService implements AuthService {
       // Process the successful sign-in
       await this.processGoogleSignIn(user);
 
-      console.log("Redirect sign-in successful");
       return createSuccessResult(this.mapUserToProfile(user));
     } catch (error: any) {
       console.error(
