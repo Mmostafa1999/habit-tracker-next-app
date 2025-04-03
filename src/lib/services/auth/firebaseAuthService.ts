@@ -27,6 +27,30 @@ import {
 } from "../common/types";
 import { AuthService, UserProfile } from "./authService";
 
+// Define token verification function - will be implemented on server-side
+const verifyAuth = async (): Promise<boolean> => {
+  try {
+    // Call the token verification API endpoint
+    const response = await fetch("/api/auth/verify", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // Important for including cookies
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    return data.valid === true;
+  } catch (error) {
+    console.error("Error verifying authentication:", error);
+    return false;
+  }
+};
+
 export class FirebaseAuthService implements AuthService {
   async initialize(): Promise<void> {
     // Nothing needed for init
@@ -57,6 +81,13 @@ export class FirebaseAuthService implements AuthService {
         password,
       );
       console.log("Sign-in successful");
+
+      // Get the Firebase ID token
+      const idToken = await userCredential.user.getIdToken();
+
+      // Save token in a secure HTTP-only cookie via API call
+      await this.setAuthCookies(idToken);
+
       return createSuccessResult(this.mapUserToProfile(userCredential.user));
     } catch (error: any) {
       console.error(
@@ -120,6 +151,12 @@ export class FirebaseAuthService implements AuthService {
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),
       });
+
+      // Get the Firebase ID token
+      const idToken = await userCredential.user.getIdToken();
+
+      // Save token in a secure HTTP-only cookie via API call
+      await this.setAuthCookies(idToken);
 
       // Initialize user data (achievements, etc.)
       const profile = this.mapUserToProfile(userCredential.user);
@@ -214,6 +251,12 @@ export class FirebaseAuthService implements AuthService {
         );
       }
 
+      // Get the Firebase ID token
+      const idToken = await user.getIdToken();
+
+      // Save token in a secure HTTP-only cookie via API call
+      await this.setAuthCookies(idToken);
+
       console.log("Google sign-in successful");
       return createSuccessResult(this.mapUserToProfile(user));
     } catch (error: any) {
@@ -247,6 +290,10 @@ export class FirebaseAuthService implements AuthService {
   async signOut(): Promise<ServiceResult<void>> {
     try {
       await fbSignOut(auth);
+
+      // Clear auth cookies via API call
+      await this.clearAuthCookies();
+
       return createSuccessResult(undefined);
     } catch (error: any) {
       return createErrorResult(
@@ -265,9 +312,8 @@ export class FirebaseAuthService implements AuthService {
     } catch (error: any) {
       return createErrorResult(
         new ApiError(
-          error.message || "Failed to send password reset email",
+          error.message || "Failed to send reset email",
           error.code || "auth/unknown",
-          400,
         ),
       );
     }
@@ -297,11 +343,11 @@ export class FirebaseAuthService implements AuthService {
       const user = auth.currentUser;
       if (!user) {
         return createErrorResult(
-          new ApiError("No user is signed in", "auth/no-user", 401),
+          new ApiError("No user is currently signed in", "auth/no-user", 401),
         );
       }
 
-      // Update Auth profile (only supports displayName and photoURL)
+      // Update auth profile if display name or photo URL is provided
       if (data.displayName || data.photoURL) {
         await fbUpdateProfile(user, {
           displayName: data.displayName || user.displayName,
@@ -309,23 +355,20 @@ export class FirebaseAuthService implements AuthService {
         });
       }
 
-      // Update Firestore profile (can update all fields)
+      // Update the user record in Firestore
+      const userRef = doc(db, "users", user.uid);
       await setDoc(
-        doc(db, "users", user.uid),
+        userRef,
         {
-          ...data,
+          ...(data.displayName && { displayName: data.displayName }),
+          ...(data.photoURL && { photoURL: data.photoURL }),
+          // Add other updateable fields here
           updatedAt: serverTimestamp(),
         },
         { merge: true },
       );
 
-      // Get fresh user data
-      const updatedUser = auth.currentUser;
-      if (!updatedUser) {
-        throw new Error("User disappeared after update");
-      }
-
-      return createSuccessResult(this.mapUserToProfile(updatedUser));
+      return createSuccessResult(this.mapUserToProfile(user));
     } catch (error: any) {
       return createErrorResult(
         new ApiError(
@@ -359,7 +402,7 @@ export class FirebaseAuthService implements AuthService {
       if (!user) {
         return createSuccessResult(null);
       }
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true); // Force refresh the token
       return createSuccessResult(token);
     } catch (error: any) {
       return createErrorResult(
@@ -368,6 +411,44 @@ export class FirebaseAuthService implements AuthService {
           error.code || "auth/unknown",
         ),
       );
+    }
+  }
+
+  // Set authentication cookies via server API
+  private async setAuthCookies(idToken: string): Promise<void> {
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to set auth cookies:", await response.text());
+        throw new Error("Failed to set authentication cookies");
+      }
+    } catch (error) {
+      console.error("Error setting auth cookies:", error);
+      throw error;
+    }
+  }
+
+  // Clear authentication cookies via server API
+  private async clearAuthCookies(): Promise<void> {
+    try {
+      const response = await fetch("/api/auth", {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        console.error("Failed to clear auth cookies:", await response.text());
+        throw new Error("Failed to clear authentication cookies");
+      }
+    } catch (error) {
+      console.error("Error clearing auth cookies:", error);
+      throw error;
     }
   }
 

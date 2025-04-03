@@ -87,15 +87,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify CSRF token
-    const cookieStore = cookies();
-    const csrfTokenFromCookie = cookieStore.get("csrf_token")?.value;
-    const { csrfToken, idToken } = await request.json();
+    // Parse the request body to get the ID token
+    const { idToken } = await request.json();
 
-    if (!csrfToken || csrfToken !== csrfTokenFromCookie) {
+    if (!idToken) {
       return NextResponse.json(
-        { error: "Invalid CSRF token" },
-        { status: 403 },
+        { error: "No ID token provided" },
+        { status: 400 },
       );
     }
 
@@ -120,7 +118,18 @@ export async function POST(request: NextRequest) {
     });
 
     // Set cookie
+    const cookieStore = cookies();
     cookieStore.set("__session", sessionCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: expiresIn / 1000,
+      path: "/",
+    });
+
+    // Generate a new CSRF token for this session
+    const csrfToken = generateCsrfToken();
+    cookieStore.set("csrf_token", csrfToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
