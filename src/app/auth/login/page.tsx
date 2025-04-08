@@ -115,11 +115,6 @@ export default function LoginPage() {
           </div>
 
           <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
-            {errors.general && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">
-                {errors.general}
-              </div>
-            )}
 
             <Input
               id="email"

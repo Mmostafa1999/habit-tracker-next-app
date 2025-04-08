@@ -6,8 +6,7 @@ import { UserProfile } from "../services/auth/authService";
 import { getAuthService } from "../services/serviceFactory";
 import { handleError, showInfo, showSuccess } from "../utils/errorHandling";
 import { cleanFirebaseLocalStorage } from "../utils/localStorageCleanup";
-import { ApiError } from "../services/common/types";
-import { getRedirectResult } from "../firebase/config";
+
 
 type AuthContextType = {
   user: UserProfile | null;

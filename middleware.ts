@@ -1,3 +1,4 @@
+import { adminAuth } from "@/lib/firebase/admin";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -8,6 +9,7 @@ const AUTH_PATH_MAP: Record<string, boolean | null> = {
   "/auth/login": false,
   "/auth/signup": false,
   "/auth/forgot-password": false,
+  "/auth/verify-email": null, // Allow access to email verification page
   "/dashboard": true,
 };
 
@@ -15,8 +17,10 @@ const AUTH_PATH_MAP: Record<string, boolean | null> = {
 // refresh it through the server for security
 const SESSION_REFRESH_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  console.log(`Middleware running for path: ${pathname}`);
 
   // Quick response for static assets and API routes
   if (
@@ -52,10 +56,64 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Explicitly check for dashboard routes
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+    console.log("Dashboard route detected, checking authentication");
+
+    // Check if the user has a session cookie
+    const sessionCookie = request.cookies.get("__session");
+    const hasAuthCookie = !!sessionCookie?.value;
+
+    console.log(`Has auth cookie: ${hasAuthCookie}`);
+
+    if (!hasAuthCookie) {
+      console.log("No auth cookie found, redirecting to login");
+      const url = new URL("/auth/login", request.url);
+      // Add the original URL as a query parameter to redirect back after login
+      url.searchParams.set("callbackUrl", request.url);
+      return NextResponse.redirect(url);
+    }
+
+    // Try to verify the session cookie
+    try {
+      if (sessionCookie?.value) {
+        console.log("Verifying session cookie");
+        // Verify the session cookie and get decoded claims
+        const decodedClaims = await adminAuth.verifySessionCookie(
+          sessionCookie.value,
+        );
+        console.log("Session verified successfully");
+
+        // Check if email is verified
+        if (decodedClaims.email_verified === false) {
+          console.log("Email not verified, redirecting to verify-email");
+          // Don't redirect if already on verify-email page to prevent loops
+          if (!pathname.startsWith("/auth/verify-email")) {
+            const url = new URL("/auth/verify-email", request.url);
+            // Add the original URL as a query parameter to redirect back after verification
+            url.searchParams.set("callbackUrl", request.url);
+            return NextResponse.redirect(url);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Session verification error:", error);
+
+      // If session is invalid, redirect to login
+      console.log("Invalid session, redirecting to login");
+      const url = new URL("/auth/login", request.url);
+      url.searchParams.set("callbackUrl", request.url);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Continue with the general AUTH_PATH_MAP checks for non-dashboard routes
   // Determine the base path for checking auth requirements
   const basePath = Object.keys(AUTH_PATH_MAP).find(
     path => pathname === path || pathname.startsWith(`${path}/`),
   );
+
+  console.log(`Base path determined: ${basePath}`);
 
   // If no specific rule exists, allow access
   if (!basePath || AUTH_PATH_MAP[basePath] === null) {
@@ -82,6 +140,9 @@ export function middleware(request: NextRequest) {
 
   // Auth required but no auth cookie
   if (AUTH_PATH_MAP[basePath] === true && !hasAuthCookie) {
+    console.log(
+      `Auth required for ${basePath} but no auth cookie found, redirecting to login`,
+    );
     const url = new URL("/auth/login", request.url);
     // Add the original URL as a query parameter to redirect back after login
     url.searchParams.set("callbackUrl", request.url);
@@ -90,16 +151,21 @@ export function middleware(request: NextRequest) {
 
   // Auth not allowed but has auth cookie (e.g., login page when already logged in)
   if (AUTH_PATH_MAP[basePath] === false && hasAuthCookie) {
+    console.log(
+      `Auth not allowed for ${basePath} but has auth cookie, redirecting to dashboard`,
+    );
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // If we need to refresh the session, redirect through our session refresh API
   if (shouldRefreshSession) {
+    console.log("Session needs refreshing");
     const refreshUrl = new URL("/api/auth/session/refresh", request.url);
     refreshUrl.searchParams.set("callbackUrl", request.url);
     return NextResponse.redirect(refreshUrl);
   }
 
+  console.log("Middleware completed, allowing request to continue");
   return NextResponse.next();
 }
 
