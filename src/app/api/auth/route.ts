@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       !decodedToken.email_verified
     ) {
       return NextResponse.json(
-        { error: "Email not verified" },
+        { error: "Email not verified", message: "Please check your email and verify your account before logging in." },
         { status: 403 },
       );
     }

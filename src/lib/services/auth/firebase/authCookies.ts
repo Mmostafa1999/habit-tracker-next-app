@@ -12,7 +12,21 @@ export async function setAuthCookies(idToken: string): Promise<void> {
     });
 
     if (!response.ok) {
-      console.error("Failed to set auth cookies:", await response.text());
+      const errorText = await response.text();
+      console.error("Failed to set auth cookies:", errorText);
+
+      // Try to parse the error data to check for specific errors
+      try {
+        const parsedError = JSON.parse(errorText);
+        if (parsedError.error === "Email not verified") {
+          throw new Error(
+            "Email not verified. Please verify your email before logging in.",
+          );
+        }
+      } catch {
+        // If we can't parse the error, just use the original error message
+      }
+
       throw new Error("Failed to set authentication cookies");
     }
   } catch (error) {
@@ -38,4 +52,4 @@ export async function clearAuthCookies(): Promise<void> {
     console.error("Error clearing auth cookies:", error);
     throw error;
   }
-} 
+}

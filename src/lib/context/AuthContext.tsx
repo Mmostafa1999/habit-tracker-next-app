@@ -82,6 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           showInfo("This account has been disabled. Please contact support.");
         } else if (error.code === "auth/too-many-requests") {
           showInfo("Too many failed login attempts. Please try again later or reset your password.");
+        } else if (error.code === "auth/email-not-verified") {
+          showInfo("Please verify your email before logging in. Check your inbox for the verification link.");
         } else {
           handleError(error);
         }
@@ -90,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,14 +103,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await authService.signUpWithEmail(email, password, displayName);
 
       if (result.result === "SUCCESS") {
-        showInfo("Account created successfully! Please verify your email.");
-        router.push("/dashboard");
+        showSuccess("Account created successfully! Please check your email and verify your account before logging in.");
+        router.push("/auth/login");
       } else if (result.error) {
         throw result.error;
       }
     } catch (error) {
+      handleError(error);
       setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

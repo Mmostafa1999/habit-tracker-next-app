@@ -61,8 +61,26 @@ export class FirebaseAuthService implements AuthService {
       // Get the Firebase ID token
       const idToken = await userCredential.user.getIdToken();
 
-      // Save token in a secure HTTP-only cookie via API call
-      await setAuthCookies(idToken);
+      try {
+        // Save token in a secure HTTP-only cookie via API call
+        await setAuthCookies(idToken);
+      } catch (cookieError: any) {
+        // Check if this is an email verification error
+        if (
+          cookieError.message &&
+          cookieError.message.includes("Email not verified")
+        ) {
+          return createErrorResult(
+            new ApiError(
+              "Please verify your email before logging in",
+              "auth/email-not-verified",
+              403,
+            ),
+          );
+        }
+        // For other cookie errors, rethrow
+        throw cookieError;
+      }
 
       return createSuccessResult(mapUserToProfile(userCredential.user));
     } catch (error: any) {
@@ -128,16 +146,11 @@ export class FirebaseAuthService implements AuthService {
         lastLogin: serverTimestamp(),
       });
 
-      // Get the Firebase ID token
-      const idToken = await userCredential.user.getIdToken();
-
-      // Save token in a secure HTTP-only cookie via API call
-      await setAuthCookies(idToken);
-
       // Initialize user data (achievements, etc.)
       const profile = mapUserToProfile(userCredential.user);
       await initializeUserData(profile);
 
+      // Return success without setting auth cookies - we'll wait for email verification
       return createSuccessResult(profile);
     } catch (error: any) {
       return createErrorResult(
