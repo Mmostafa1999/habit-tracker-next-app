@@ -9,7 +9,7 @@ import { FirebaseAchievementService } from "./achievements/firebaseAchievementSe
 import { AnalyticsService } from "./analytics/analyticsService";
 import { FirebaseAnalyticsService } from "./analytics/firebaseAnalyticsService";
 import { AuthService } from "./auth/authService";
-import { FirebaseAuthService } from "./auth/firebaseAuthService";
+import { FirebaseAuthService } from "./auth/firebase";
 import { FirebaseHabitService } from "./habits/firebaseHabitService";
 import { HabitService } from "./habits/habitService";
 

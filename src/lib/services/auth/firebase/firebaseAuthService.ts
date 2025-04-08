@@ -1,58 +1,32 @@
-import { User } from "firebase/auth";
-import { collection, getDocs } from "firebase/firestore";
 import {
-  auth,
   createUserWithEmailAndPassword,
-  db,
-  doc,
   onAuthStateChanged as fbOnAuthStateChanged,
   signOut as fbSignOut,
   updateProfile as fbUpdateProfile,
-  getDoc,
   getRedirectResult,
-  googleProvider,
   sendEmailVerification,
   sendPasswordResetEmail,
-  serverTimestamp,
-  setDoc,
   signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
-  writeBatch,
-} from "../../firebase/config";
-import { defaultAchievements } from "../../utils/achievementUtils";
-import { cleanFirebaseLocalStorage } from "../../utils/localStorageCleanup";
+} from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   ApiError,
   ServiceResult,
   createErrorResult,
   createSuccessResult,
-} from "../common/types";
-import { AuthService, UserProfile } from "./authService";
-
-// Define token verification function - will be implemented on server-side
-const verifyAuth = async (): Promise<boolean> => {
-  try {
-    // Call the token verification API endpoint
-    const response = await fetch("/api/auth/verify", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // Important for including cookies
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const data = await response.json();
-    return data.valid === true;
-  } catch (error) {
-    console.error("Error verifying authentication:", error);
-    return false;
-  }
-};
+} from "../../common/types";
+import { AuthService, UserProfile } from "../authService";
+import { clearAuthCookies, setAuthCookies } from "./authCookies";
+import { auth, db, googleProvider } from "./firebaseConfig";
+import { processGoogleSignIn } from "./googleSignIn";
+import { verifyAuth } from "./tokenVerification";
+import { initializeUserData } from "./userDataInitialization";
+import {
+  cleanFirebaseLocalStorage,
+  mapUserToProfile,
+} from "./userProfileUtils";
 
 export class FirebaseAuthService implements AuthService {
   async initialize(): Promise<void> {
@@ -78,21 +52,19 @@ export class FirebaseAuthService implements AuthService {
     }
 
     try {
-      console.log("Attempting to sign in with email:", email);
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password,
       );
-      console.log("Sign-in successful");
 
       // Get the Firebase ID token
       const idToken = await userCredential.user.getIdToken();
 
       // Save token in a secure HTTP-only cookie via API call
-      await this.setAuthCookies(idToken);
+      await setAuthCookies(idToken);
 
-      return createSuccessResult(this.mapUserToProfile(userCredential.user));
+      return createSuccessResult(mapUserToProfile(userCredential.user));
     } catch (error: any) {
       console.error(
         "Firebase auth error during sign in:",
@@ -160,11 +132,11 @@ export class FirebaseAuthService implements AuthService {
       const idToken = await userCredential.user.getIdToken();
 
       // Save token in a secure HTTP-only cookie via API call
-      await this.setAuthCookies(idToken);
+      await setAuthCookies(idToken);
 
       // Initialize user data (achievements, etc.)
-      const profile = this.mapUserToProfile(userCredential.user);
-      await this.initializeUserData(profile);
+      const profile = mapUserToProfile(userCredential.user);
+      await initializeUserData(profile);
 
       return createSuccessResult(profile);
     } catch (error: any) {
@@ -180,8 +152,6 @@ export class FirebaseAuthService implements AuthService {
 
   async signInWithGoogle(): Promise<ServiceResult<UserProfile>> {
     try {
-      console.log("Attempting to sign in with Google");
-
       // Configure Google provider with custom parameters
       googleProvider.setCustomParameters({ prompt: "select_account" });
 
@@ -193,9 +163,9 @@ export class FirebaseAuthService implements AuthService {
         const { user } = result;
 
         // Process the successful sign-in
-        await this.processGoogleSignIn(user);
+        await processGoogleSignIn(user);
 
-        return createSuccessResult(this.mapUserToProfile(user));
+        return createSuccessResult(mapUserToProfile(user));
       }
 
       // If we're not handling a redirect result, start a new sign-in flow
@@ -205,15 +175,10 @@ export class FirebaseAuthService implements AuthService {
         const { user } = userCredential;
 
         // Process the successful sign-in
-        await this.processGoogleSignIn(user);
+        await processGoogleSignIn(user);
 
-        return createSuccessResult(this.mapUserToProfile(user));
+        return createSuccessResult(mapUserToProfile(user));
       } catch (popupError: any) {
-        console.log(
-          "Popup authentication failed, trying redirect:",
-          popupError.code,
-        );
-
         // If popup fails, fall back to redirect
         if (
           popupError.code === "auth/cancelled-popup-request" ||
@@ -270,7 +235,7 @@ export class FirebaseAuthService implements AuthService {
       await fbSignOut(auth);
 
       // Clear auth cookies via API call
-      await this.clearAuthCookies();
+      await clearAuthCookies();
 
       // Clean up any Firebase data stored in localStorage
       cleanFirebaseLocalStorage();
@@ -284,11 +249,6 @@ export class FirebaseAuthService implements AuthService {
         ),
       );
     }
-  }
-
-  // Clear any Firebase-related data from localStorage
-  private clearLocalStorageData(): void {
-    cleanFirebaseLocalStorage();
   }
 
   async resetPassword(email: string): Promise<ServiceResult<void>> {
@@ -311,7 +271,7 @@ export class FirebaseAuthService implements AuthService {
       if (!user) {
         return createSuccessResult(null);
       }
-      return createSuccessResult(this.mapUserToProfile(user));
+      return createSuccessResult(mapUserToProfile(user));
     } catch (error: any) {
       return createErrorResult(
         new ApiError(
@@ -354,7 +314,7 @@ export class FirebaseAuthService implements AuthService {
         { merge: true },
       );
 
-      return createSuccessResult(this.mapUserToProfile(user));
+      return createSuccessResult(mapUserToProfile(user));
     } catch (error: any) {
       return createErrorResult(
         new ApiError(
@@ -400,48 +360,10 @@ export class FirebaseAuthService implements AuthService {
     }
   }
 
-  // Set authentication cookies via server API
-  private async setAuthCookies(idToken: string): Promise<void> {
-    try {
-      const response = await fetch("/api/auth", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken }),
-      });
-
-      if (!response.ok) {
-        console.error("Failed to set auth cookies:", await response.text());
-        throw new Error("Failed to set authentication cookies");
-      }
-    } catch (error) {
-      console.error("Error setting auth cookies:", error);
-      throw error;
-    }
-  }
-
-  // Clear authentication cookies via server API
-  private async clearAuthCookies(): Promise<void> {
-    try {
-      const response = await fetch("/api/auth", {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        console.error("Failed to clear auth cookies:", await response.text());
-        throw new Error("Failed to clear authentication cookies");
-      }
-    } catch (error) {
-      console.error("Error clearing auth cookies:", error);
-      throw error;
-    }
-  }
-
   onAuthStateChanged(callback: (user: UserProfile | null) => void): () => void {
     return fbOnAuthStateChanged(auth, user => {
       if (user) {
-        callback(this.mapUserToProfile(user));
+        callback(mapUserToProfile(user));
       } else {
         callback(null);
       }
@@ -449,98 +371,9 @@ export class FirebaseAuthService implements AuthService {
   }
 
   async initializeUserData(user: UserProfile): Promise<ServiceResult<void>> {
-    try {
-      // Check if the user already has achievements
-      const achievementsRef = collection(db, "users", user.uid, "achievements");
-      const achievementsSnapshot = await getDocs(achievementsRef);
-
-      // If no achievements exist, create defaults
-      if (achievementsSnapshot.empty) {
-        const initialAchievements = defaultAchievements.map(achievement => ({
-          ...achievement,
-          progress: 0,
-          unlocked: false,
-        }));
-
-        // Save default achievements to Firestore
-        const batch = writeBatch(db);
-        initialAchievements.forEach(achievement => {
-          const newDoc = doc(
-            db,
-            "users",
-            user.uid,
-            "achievements",
-            achievement.id,
-          );
-          batch.set(newDoc, achievement);
-        });
-
-        await batch.commit();
-      }
-
-      return createSuccessResult(undefined);
-    } catch (error: any) {
-      return createErrorResult(
-        new ApiError(
-          error.message || "Failed to initialize user data",
-          error.code || "auth/unknown",
-        ),
-      );
-    }
+    return initializeUserData(user);
   }
 
-  // Helper method to map Firebase User to UserProfile
-  private mapUserToProfile(user: User): UserProfile {
-    return {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-      emailVerified: user.emailVerified,
-    };
-  }
-
-  // Helper method to process Google sign-in user record
-  private async processGoogleSignIn(user: User): Promise<void> {
-    // Check if user exists in Firestore
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-
-    // If user doesn't exist, create a new user record
-    if (!userDoc.exists()) {
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        emailVerified: user.emailVerified,
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
-      });
-
-      // Initialize user data (achievements, etc.)
-      const profile = this.mapUserToProfile(user);
-      await this.initializeUserData(profile);
-    } else {
-      // Update last login time
-      await setDoc(
-        doc(db, "users", user.uid),
-        { lastLogin: serverTimestamp() },
-        { merge: true },
-      );
-    }
-
-    // Get the Firebase ID token
-    const idToken = await user.getIdToken();
-
-    // Save token in a secure HTTP-only cookie via API call
-    await this.setAuthCookies(idToken);
-  }
-
-  /**
-   * Handles redirect-based authentication results (e.g., from Google sign-in)
-   * This should be called when the application loads to handle any pending
-   * authentication redirects.
-   */
   async handleRedirectResult(): Promise<ServiceResult<UserProfile | null>> {
     try {
       // Get the redirect result
@@ -555,10 +388,9 @@ export class FirebaseAuthService implements AuthService {
       const { user } = result;
 
       // Process the successful sign-in
-      await this.processGoogleSignIn(user);
+      await processGoogleSignIn(user);
 
-      console.log("Redirect sign-in successful");
-      return createSuccessResult(this.mapUserToProfile(user));
+      return createSuccessResult(mapUserToProfile(user));
     } catch (error: any) {
       console.error(
         "Error handling redirect result:",
