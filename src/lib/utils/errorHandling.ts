@@ -173,3 +173,39 @@ export function toApiError(
 
   return new ApiError(defaultMessage, "generic/unknown");
 }
+
+/**
+ * Handles API errors by showing a toast notification and returning a user-friendly error message
+ * Useful for handling errors in async operations like login/signup
+ */
+export function handleApiError(error: unknown, customMessage?: string): string {
+  const errorMessage = customMessage || getErrorMessage(error);
+
+  // Show the error in a toast notification
+  toast.error(errorMessage);
+
+  // Log full error to console for developers
+  if (process.env.NODE_ENV !== "production") {
+    console.error("API Error details:", error);
+  }
+
+  return errorMessage;
+}
+
+/**
+ * Gets a user-friendly error message without showing a toast notification
+ * Use this when toast notifications are already handled elsewhere (e.g., in AuthContext)
+ */
+export function getApiErrorMessage(
+  error: unknown,
+  customMessage?: string,
+): string {
+  const errorMessage = customMessage || getErrorMessage(error);
+
+  // Log full error to console for developers (but no toast)
+  if (process.env.NODE_ENV !== "production") {
+    console.error("API Error details:", error);
+  }
+
+  return errorMessage;
+}

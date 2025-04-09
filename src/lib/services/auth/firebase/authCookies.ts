@@ -1,6 +1,8 @@
 /**
  * Sets authentication cookies via server API
  */
+import { getApiErrorMessage } from "@/lib/utils/errorHandling";
+
 export async function setAuthCookies(idToken: string): Promise<void> {
   try {
     const response = await fetch("/api/auth", {
@@ -13,7 +15,6 @@ export async function setAuthCookies(idToken: string): Promise<void> {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Failed to set auth cookies:", errorText);
 
       // Try to parse the error data to check for specific errors
       try {
@@ -30,7 +31,8 @@ export async function setAuthCookies(idToken: string): Promise<void> {
       throw new Error("Failed to set authentication cookies");
     }
   } catch (error) {
-    console.error("Error setting auth cookies:", error);
+    // Log the error but don't show toast (AuthContext will handle the toast)
+    getApiErrorMessage(error);
     throw error;
   }
 }
@@ -45,11 +47,11 @@ export async function clearAuthCookies(): Promise<void> {
     });
 
     if (!response.ok) {
-      console.error("Failed to clear auth cookies:", await response.text());
       throw new Error("Failed to clear authentication cookies");
     }
   } catch (error) {
-    console.error("Error clearing auth cookies:", error);
+    // Log the error but don't show toast (AuthContext will handle the toast)
+    getApiErrorMessage(error);
     throw error;
   }
 }

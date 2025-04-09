@@ -4,6 +4,7 @@ import Header from "@/components/layout/Header";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useAuth } from "@/lib/context/AuthContext";
+import { getApiErrorMessage } from "@/lib/utils/errorHandling";
 import Link from "next/link";
 import React, { useState } from "react";
 import { FiArrowLeft, FiMail } from "react-icons/fi";
@@ -38,8 +39,9 @@ export default function ForgotPasswordPage() {
       setLoading(true);
       await resetPassword(email);
       setIsSubmitted(true);
-    } catch (error) {
-      console.error("Reset password error:", error);
+    } catch (error: unknown) {
+      const errorMessage = getApiErrorMessage(error);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

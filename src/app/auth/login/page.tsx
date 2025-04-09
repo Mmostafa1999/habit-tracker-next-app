@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useAuth } from "@/lib/context/AuthContext";
+import { getApiErrorMessage } from "@/lib/utils/errorHandling";
 import Link from "next/link";
 import React, { useState } from "react";
 import { FiLock, FiMail } from "react-icons/fi";
@@ -46,22 +47,12 @@ export default function LoginPage() {
       setLoading(true);
       setErrors({});
       await signIn(email, password);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
-      // Handle different types of errors
-      if (error.code === "auth/invalid-credential" ||
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/wrong-password") {
-        setErrors({ general: "Invalid email or password" });
-      } else if (error.code === "auth/user-disabled") {
-        setErrors({ general: "This account has been disabled" });
-      } else if (error.code === "auth/too-many-requests") {
-        setErrors({ general: "Too many failed attempts. Try again later" });
-      } else if (error.code === "auth/network-request-failed") {
-        setErrors({ general: "Network error. Check your connection" });
-      } else {
-        setErrors({ general: error.message || "An error occurred during login" });
-      }
+
+      // Use getApiErrorMessage instead of handleApiError to avoid duplicate toasts
+      const errorMessage = getApiErrorMessage(error);
+      setErrors({ general: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -72,28 +63,10 @@ export default function LoginPage() {
       setGoogleLoading(true);
       setErrors({});
       await signInWithGoogle();
-    } catch (error: any) {
-      console.error("Google sign in error:", error);
-
-      // Handle specific Google sign-in errors
-      if (error.code === "auth/cancelled-popup-request" ||
-        error.code === "auth/popup-closed-by-user") {
-        setErrors({
-          general: "Google sign-in was cancelled. Please try again."
-        });
-      } else if (error.code === "auth/popup-blocked") {
-        setErrors({
-          general: "Google sign-in popup was blocked. Please allow popups for this site."
-        });
-      } else if (error.code === "auth/account-exists-with-different-credential") {
-        setErrors({
-          general: "An account already exists with this email but with a different sign-in method."
-        });
-      } else {
-        setErrors({
-          general: error.message || "An error occurred during Google sign-in. Please try again."
-        });
-      }
+    } catch (error: unknown) {
+      // Use getApiErrorMessage instead of handleApiError to avoid duplicate toasts
+      const errorMessage = getApiErrorMessage(error);
+      setErrors({ general: errorMessage });
     } finally {
       setGoogleLoading(false);
     }
@@ -128,7 +101,7 @@ export default function LoginPage() {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setEmail(e.target.value)
               }
-              error={errors.email}
+              // error={errors.email}
               icon={<FiMail className="text-gray-500" />}
               className="transition-all duration-300 ease-in-out"
             />

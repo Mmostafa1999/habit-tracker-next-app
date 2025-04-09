@@ -117,17 +117,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logOut = async () => {
+    setLoading(true);
     try {
       const result = await authService.signOut();
 
       if (result.result === "SUCCESS") {
-        showSuccess("Signed out successfully!");
         router.push("/auth/login");
+        showSuccess("Signed out successfully!");
       } else if (result.error) {
         throw result.error;
       }
     } catch (error) {
       throw error;
+      setLoading(false);
+
+    }finally {
+      setLoading(false);
     }
   };
 

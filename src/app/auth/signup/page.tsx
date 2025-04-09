@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useAuth } from "@/lib/context/AuthContext";
+import { handleApiError, getApiErrorMessage } from "@/lib/utils/errorHandling";
 import Link from "next/link";
 import React, { useState } from "react";
 import { FiLock, FiMail, FiUser } from "react-icons/fi";
@@ -82,8 +83,9 @@ export default function SignupPage() {
       await signUp(email, password);
       setVerificationEmail(email);
       setIsEmailSent(true);
-    } catch (error) {
-      console.error("Signup error:", error);
+    } catch (error: unknown) {
+      const errorMessage = getApiErrorMessage(error);
+      setErrors({ email: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -93,8 +95,9 @@ export default function SignupPage() {
     try {
       setGoogleLoading(true);
       await signInWithGoogle();
-    } catch (error) {
-      console.error("Google sign in error:", error);
+    } catch (error: unknown) {
+      const errorMessage = getApiErrorMessage(error);
+      setErrors({ email: errorMessage });
     } finally {
       setGoogleLoading(false);
     }
@@ -147,7 +150,6 @@ export default function SignupPage() {
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setEmail(e.target.value)
                   }
-                  error={errors.email}
                   icon={<FiMail className="text-gray-500" />}
                   className="transition-all duration-300 ease-in-out"
                 />
