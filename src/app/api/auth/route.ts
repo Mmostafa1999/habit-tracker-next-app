@@ -50,9 +50,9 @@ export async function GET() {
 
   const cookieStore = await cookies();
   cookieStore.set("csrf_token", csrfToken, {
-    httpOnly: true,
+    httpOnly: process.env.NODE_ENV === "production",
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "None",
     maxAge: CSRF_TOKEN_EXPIRY / 1000,
     path: "/",
   });
@@ -106,18 +106,18 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
 
     cookieStore.set("__session", sessionCookie, {
-      httpOnly: true,
+      httpOnly: process.env.NODE_ENV === "production",
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "None",
       maxAge: expiresIn / 1000,
       path: "/",
     });
 
     const csrfToken = generateCsrfToken();
     cookieStore.set("csrf_token", csrfToken, {
-      httpOnly: true,
+      httpOnly: process.env.NODE_ENV === "production",
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "None",
       maxAge: expiresIn / 1000,
       path: "/",
     });
@@ -136,17 +136,17 @@ export async function POST(request: NextRequest) {
 export async function DELETE() {
   const cookieStore = await cookies();
   cookieStore.set("__session", "", {
-    httpOnly: true,
+    httpOnly: process.env.NODE_ENV === "production",
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "None",
     maxAge: 0,
     path: "/",
   });
 
   cookieStore.set("csrf_token", "", {
-    httpOnly: true,
+    httpOnly: process.env.NODE_ENV === "production",
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "None",
     maxAge: 0,
     path: "/",
   });
