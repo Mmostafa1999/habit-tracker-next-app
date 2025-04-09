@@ -2,6 +2,7 @@
  * Habit utility functions for the application
  */
 
+import { Habit } from "../types";
 import { addDays, startOfDay } from "./dateUtils";
 
 /**
@@ -133,4 +134,103 @@ export function getNextOccurrence(
 
   // No future occurrences
   return null;
+}
+
+/**
+ * Checks if a habit should occur on a specific date based on its frequency settings
+ */
+export function shouldHabitOccurOnDate(habit: Habit, date: Date): boolean {
+  // For completed habits, check if the date is in completedDates
+  if (habit.completedDates && habit.completedDates.length > 0) {
+    const dateString = date.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+    if (habit.completedDates.includes(dateString)) {
+      return true;
+    }
+  }
+
+  // Daily habits occur every day
+  if (habit.frequency === "Daily") {
+    return true;
+  }
+
+  // Weekly habits occur on specific days of the week
+  if (
+    habit.frequency === "Weekly" &&
+    habit.selectedDays &&
+    habit.selectedDays.length > 0
+  ) {
+    const dayOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
+      date.getDay()
+    ];
+    return habit.selectedDays.includes(dayOfWeek);
+  }
+
+  // Monthly habits occur on specific days of the month
+  if (
+    habit.frequency === "Monthly" &&
+    habit.selectedDays &&
+    habit.selectedDays.length > 0
+  ) {
+    const dayOfMonth = String(date.getDate());
+    return habit.selectedDays.includes(dayOfMonth);
+  }
+
+  return false;
+}
+
+/**
+ * Gets the next occurrences of a habit based on its frequency settings
+ */
+export function getHabitOccurrences(habit: Habit, count = 10): string[] {
+  const occurrences: string[] = [];
+
+  if (!habit) return occurrences;
+
+  let currentDate = new Date();
+  let daysAdded = 0;
+
+  while (occurrences.length < count && daysAdded < 366) {
+    if (shouldHabitOccurOnDate(habit, currentDate)) {
+      occurrences.push(currentDate.toISOString().split("T")[0]); // Format as YYYY-MM-DD
+    }
+
+    currentDate = addDays(currentDate, 1);
+    daysAdded++;
+  }
+
+  return occurrences;
+}
+
+/**
+ * Converts a day string to its numeric equivalent (0-6, where 0 is Sunday)
+ */
+export function convertDayStringToNumber(day: string): number {
+  const dayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return dayMap[day] || 0;
+}
+
+/**
+ * Calculates the completion percentage for a list of habits due today
+ */
+export function getCompletionPercentage(todayHabits: Habit[]): number {
+  if (!todayHabits || todayHabits.length === 0) {
+    return 0;
+  }
+
+  const today = new Date().toISOString().split("T")[0]; // Format as YYYY-MM-DD
+  const completedCount = todayHabits.filter(
+    habit =>
+      habit.isCompleted ||
+      (habit.completedDates && habit.completedDates.includes(today)),
+  ).length;
+
+  return Math.round((completedCount / todayHabits.length) * 100);
 }

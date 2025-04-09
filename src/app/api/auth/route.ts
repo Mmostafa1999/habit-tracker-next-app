@@ -72,11 +72,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: rateLimitCheck.message }, { status: 429 });
     }
 
-    const { idToken } = await request.json();
+    const body = await request.json();
+    const { idToken } = body;
     if (!idToken) {
       return NextResponse.json({ error: "No ID token provided" }, { status: 400 });
     }
 
+    // Verify the token before proceeding
     const decodedToken = await adminAuth.verifyIdToken(idToken);
 
     if (
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
     cookieStore.set("__session", sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax",
       maxAge: expiresIn / 1000,
       path: "/",
     });
@@ -111,8 +113,8 @@ export async function POST(request: NextRequest) {
     cookieStore.set("csrf_token", csrfToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: expiresIn / 1000,
+      sameSite: "lax",
+      maxAge: CSRF_TOKEN_EXPIRY / 1000,
       path: "/",
     });
 
@@ -132,7 +134,7 @@ export async function DELETE() {
   cookieStore.set("__session", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 0,
     path: "/",
   });
@@ -140,7 +142,7 @@ export async function DELETE() {
   cookieStore.set("csrf_token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 0,
     path: "/",
   });

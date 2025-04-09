@@ -1,7 +1,11 @@
+/**
+ * Context provider for habit management
+ */
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Category, Habit } from '../types';
+import { Habit } from '../types';
+import { Category } from '../services/habits/habitService';
 import { useAuth } from './AuthContext';
 import { getHabitService } from '../services/serviceFactory';
 import { hasData } from '../services/serviceFactory';
@@ -10,6 +14,24 @@ import {
     adaptUIHabitToServiceHabit,
     adaptServiceCategoryToUICategory
 } from '../utils/typeAdapters';
+import { getCompletionPercentage, getHabitOccurrences, shouldHabitOccurOnDate } from '../utils/habitUtils';
+import { processError } from '../utils/errorHandling';
+
+// Interface for habit data when creating a new habit
+interface NewHabitData {
+    title: string;
+    name?: string; // For compatibility with service layer
+    description?: string;
+    category: string;
+    frequency: "Daily" | "Weekly" | "Monthly";
+    selectedDays?: string[];
+    date?: string;
+    timeOfDay?: string;
+    isCompleted?: boolean;
+    completedDates?: string[];
+    color?: string;
+    icon?: string;
+}
 
 // HabitContext type definition
 type HabitContextType = {
@@ -20,7 +42,7 @@ type HabitContextType = {
     selectedCategory: string;
     categories: Category[];
     setSelectedCategory: (category: string) => void;
-    addHabit: (habit: Omit<Habit, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+    addHabit: (habit: NewHabitData) => Promise<void>;
     updateHabit: (id: string, updates: Partial<Habit>) => Promise<void>;
     deleteHabit: (id: string) => Promise<void>;
     toggleHabitCompletion: (id: string) => Promise<void>;
@@ -110,7 +132,8 @@ export function HabitProvider({ children }: { children: React.ReactNode }) {
                     setTodayHabits(todayUiHabits);
                 }
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'An unknown error occurred');
+                const errorInfo = processError(err, 'Failed to fetch habit data', false);
+                setError(errorInfo.message);
             } finally {
                 setLoading(false);
             }
@@ -119,49 +142,31 @@ export function HabitProvider({ children }: { children: React.ReactNode }) {
         fetchData();
     }, [user]);
 
-    // Function implementations using the service layer
-    const addHabit = async (habitData: Omit<Habit, 'id' | 'userId' | 'createdAt'>) => {
+    // Function to add a new habit
+    const addHabit = async (habitData: NewHabitData) => {
         if (!user) return;
 
         try {
             setLoading(true);
-            // Create a UI habit with required fields
-            const fullHabitData = {
-                ...habitData,
-                id: '', // This will be assigned by Firestore
-                userId: user.uid,
-                createdAt: { toDate: () => new Date() }, // Mock Timestamp for the adapter
-                date: habitData.date || new Date().toISOString().split('T')[0], // Ensure date exists
-                // Ensure selectedDays is always defined based on frequency
+            // Prepare the service data format
+            const serviceHabitData = {
+                // Service layer expects 'title' but UI uses 'name'
+                title: habitData.title || habitData.name || '',
+                category: habitData.category,
+                frequency: habitData.frequency,
                 selectedDays: habitData.selectedDays ||
                     (habitData.frequency === 'Weekly' ? ['Mon', 'Wed', 'Fri'] :
-                        habitData.frequency === 'Monthly' ? ['1', '15'] : [])
-            };
-
-            // Convert to a service-compatible format with explicitly defined days
-            const serviceHabitData = {
-                name: fullHabitData.title,
-                category: fullHabitData.category,
-                frequency: {
-                    type: fullHabitData.frequency.toLowerCase(),
-                    // Convert days based on frequency type
-                    days: fullHabitData.frequency === 'Weekly'
-                        ? fullHabitData.selectedDays.map(day => {
-                            const dayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
-                            return dayMap[day as keyof typeof dayMap] || 0;
-                        })
-                        : fullHabitData.frequency === 'Monthly'
-                            ? fullHabitData.selectedDays.map(day => parseInt(day, 10))
-                            : [0] // Default to Sunday for Daily habits to avoid undefined
-                },
+                        habitData.frequency === 'Monthly' ? ['1', '15'] : []),
+                date: habitData.date || new Date().toISOString().split('T')[0],
+                isCompleted: habitData.isCompleted || false,
+                completedDates: habitData.completedDates || [],
                 userId: user.uid,
-                isCompleted: false,
-                completedDates: []
+                // Any other required fields from the service Habit interface
+                createdAt: new Date().toISOString()
             };
-
 
             // Cast to the expected type structure with all required fields guaranteed
-            const result = await habitService.createHabit(user.uid, serviceHabitData as Omit<Habit, "id">);
+            const result = await habitService.createHabit(user.uid, serviceHabitData);
 
             if (hasData(result)) {
                 // Convert back to UI habit and update state
@@ -178,17 +183,18 @@ export function HabitProvider({ children }: { children: React.ReactNode }) {
                     setTodayHabits(prev => [newUiHabit, ...prev]);
                 }
             } else if (result.error) {
-                console.error('Error adding habit:', result.error);
-                setError(result.error.message);
+                const errorInfo = processError(result.error, 'Error adding habit', true);
+                setError(errorInfo.message);
             }
         } catch (err) {
-            console.error('Exception adding habit:', err);
-            setError(err instanceof Error ? err.message : 'Failed to add habit');
+            const errorInfo = processError(err, 'Failed to add habit', true);
+            setError(errorInfo.message);
         } finally {
             setLoading(false);
         }
     };
 
+    // Function to update an existing habit
     const updateHabit = async (id: string, updates: Partial<Habit>) => {
         if (!user) return;
 
@@ -221,15 +227,18 @@ export function HabitProvider({ children }: { children: React.ReactNode }) {
                     setTodayHabits(todayUiHabits);
                 }
             } else if (result.error) {
-                setError(result.error.message);
+                const errorInfo = processError(result.error, 'Error updating habit', true);
+                setError(errorInfo.message);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update habit');
+            const errorInfo = processError(err, 'Failed to update habit', true);
+            setError(errorInfo.message);
         } finally {
             setLoading(false);
         }
     };
 
+    // Function to delete a habit
     const deleteHabit = async (id: string) => {
         if (!user) return;
 
@@ -240,208 +249,186 @@ export function HabitProvider({ children }: { children: React.ReactNode }) {
                 setHabits(prev => prev.filter(h => h.id !== id));
                 setTodayHabits(prev => prev.filter(h => h.id !== id));
             } else if (result.error) {
-                setError(result.error.message);
+                const errorInfo = processError(result.error, 'Error deleting habit', true);
+                setError(errorInfo.message);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete habit');
+            const errorInfo = processError(err, 'Failed to delete habit', true);
+            setError(errorInfo.message);
         } finally {
             setLoading(false);
         }
     };
 
+    // Function to toggle habit completion status
     const toggleHabitCompletion = async (id: string) => {
         if (!user) return;
 
         try {
-            setLoading(true);
-            const habit = habits.find(h => h.id === id);
-            if (!habit) return;
+            // Find the habit to toggle
+            const habitToUpdate = habits.find(h => h.id === id);
+            if (!habitToUpdate) {
+                throw new Error(`Habit with ID ${id} not found`);
+            }
 
+            // Get today's date in YYYY-MM-DD format
             const today = new Date().toISOString().split('T')[0];
-            const isCompleted = !habit.isCompleted;
 
-            // Update the UI immediately for better UX
-            const updatedHabit = { ...habit, isCompleted };
-            setHabits(prev => prev.map(h => h.id === id ? updatedHabit : h));
-            setTodayHabits(prev => prev.map(h => h.id === id ? updatedHabit : h));
+            // Check if the habit is already completed for today
+            const isCompletedToday = habitToUpdate.completedDates?.includes(today) || false;
+            let updatedCompletedDates = [...(habitToUpdate.completedDates || [])];
 
-            // Send the update to the service
+            if (isCompletedToday) {
+                // Remove today from completed dates if already completed
+                updatedCompletedDates = updatedCompletedDates.filter(date => date !== today);
+            } else {
+                // Add today to completed dates if not completed
+                updatedCompletedDates.push(today);
+            }
+
+            // Update the habit with new completion status and directly use the toggleHabitCompletion from the service
             const result = await habitService.toggleHabitCompletion(
                 user.uid,
                 id,
                 today,
-                isCompleted
+                !isCompletedToday
             );
 
             if (hasData(result)) {
-                // Update with the service response data
+                // Convert back to UI habit and update state
                 const updatedUiHabit = adaptServiceHabitToUIHabit(result.data);
                 setHabits(prev => prev.map(h => h.id === id ? updatedUiHabit : h));
                 setTodayHabits(prev => prev.map(h => h.id === id ? updatedUiHabit : h));
             } else if (result.error) {
-                // Revert the UI update if there was an error
-                setError(result.error.message);
-                setHabits(prev => [...prev]); // Force refresh
-                setTodayHabits(prev => [...prev]); // Force refresh
+                const errorInfo = processError(result.error, 'Error toggling habit completion', true);
+                setError(errorInfo.message);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to toggle habit completion');
+            const errorInfo = processError(err, 'Failed to toggle habit completion', true);
+            setError(errorInfo.message);
+        }
+    };
+
+    // Calculate completion percentage for today's habits
+    const calculateCompletionPercentage = (): number => {
+        return getCompletionPercentage(todayHabits);
+    };
+
+    // Function to add a new category
+    const addCategory = async (name: string, color: string) => {
+        if (!user) return;
+
+        try {
+            setLoading(true);
+            const result = await habitService.createCategory(user.uid, { name, color });
+            if (hasData(result)) {
+                const newCategory = adaptServiceCategoryToUICategory(result.data);
+                setCategories(prev => [...prev, newCategory]);
+            } else if (result.error) {
+                const errorInfo = processError(result.error, 'Error adding category', true);
+                setError(errorInfo.message);
+            }
+        } catch (err) {
+            const errorInfo = processError(err, 'Failed to add category', true);
+            setError(errorInfo.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const getCompletionPercentage = (): number => {
-        if (todayHabits.length === 0) return 0;
-
-        const completedCount = todayHabits.filter(habit => habit.isCompleted).length;
-        return Math.round((completedCount / todayHabits.length) * 100);
-    };
-
-    const addCategory = async (name: string, color: string) => {
-        if (!user) return null;
-
-        try {
-            const result = await habitService.createCategory(user.uid, { name, color });
-            if (hasData(result)) {
-                const newUiCategory = adaptServiceCategoryToUICategory(result.data);
-                setCategories(prev => [...prev, newUiCategory]);
-            } else if (result.error) {
-                setError(result.error.message);
-            }
-            return result;
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to add category');
-            throw err;
-        }
-    };
-
+    // Function to update an existing category
     const updateCategory = async (id: string, name: string) => {
         if (!user) return;
 
         try {
+            setLoading(true);
             const result = await habitService.updateCategory(user.uid, id, { name });
             if (hasData(result)) {
-                const updatedUiCategory = adaptServiceCategoryToUICategory(result.data);
-                setCategories(prev => prev.map(c => c.id === id ? updatedUiCategory : c));
+                const updatedCategory = adaptServiceCategoryToUICategory(result.data);
+                setCategories(prev => prev.map(c => c.id === id ? updatedCategory : c));
             } else if (result.error) {
-                setError(result.error.message);
+                const errorInfo = processError(result.error, 'Error updating category', true);
+                setError(errorInfo.message);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update category');
-        }
-    };
-
-    const deleteCategory = async (id: string) => {
-        if (!user) return;
-
-        try {
-            // Set loading state to indicate the operation is in progress
-            setLoading(true);
-
-            // Find the category to get its name before deletion
-            const categoryToDelete = categories.find(c => c.id === id);
-            if (!categoryToDelete) return;
-
-            const result = await habitService.deleteCategory(user.uid, id);
-            if (result.result === 'SUCCESS') {
-                // Remove the category from local state
-                setCategories(prev => prev.filter(c => c.id !== id));
-
-                // Also remove all habits that belonged to this category
-                setHabits(prev => prev.filter(h => h.category !== categoryToDelete.name));
-                setTodayHabits(prev => prev.filter(h => h.category !== categoryToDelete.name));
-
-                // Set selectedCategory to 'All' if the deleted category was selected
-                if (selectedCategory === categoryToDelete.name) {
-                    setSelectedCategory('All');
-                }
-            } else if (result.error) {
-                setError(result.error.message);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete category');
+            const errorInfo = processError(err, 'Failed to update category', true);
+            setError(errorInfo.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const getHabitOccurrences = (habit: Habit, count = 10): string[] => {
-        // Local implementation as this doesn't require a service call
-        if (!habit.frequency) return [];
+    // Function to delete a category
+    const deleteCategory = async (id: string) => {
+        if (!user) return;
 
-        const dates: string[] = [];
-        const today = new Date();
-        const currentDate = new Date(today);
+        try {
+            setLoading(true);
+            // First check if there are habits using this category
+            const habitsWithCategory = habits.filter(h => h.category === id);
 
-        for (let i = 0; i < count; i++) {
-            // Convert to YYYY-MM-DD
-            const dateString = currentDate.toISOString().split('T')[0];
+            if (habitsWithCategory.length > 0) {
+                // If there are habits, update them to use the default category
+                for (const habit of habitsWithCategory) {
+                    await habitService.updateHabit(user.uid, habit.id, {
+                        ...adaptUIHabitToServiceHabit(habit),
+                        category: 'default'
+                    });
+                }
 
-            // Check if habit occurs on this date based on frequency
-            if (shouldHabitOccurOnDate(habit, currentDate)) {
-                dates.push(dateString);
+                // Update habits in state
+                setHabits(prev => prev.map(h =>
+                    h.category === id ? { ...h, category: 'default' } : h
+                ));
             }
 
-            // Move to next day
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-
-        return dates;
-    };
-
-    // Helper function to determine if a habit should occur on a given date
-    const shouldHabitOccurOnDate = (habit: Habit, date: Date): boolean => {
-        const { frequency } = habit;
-        if (!frequency) return false;
-
-        switch (frequency) {
-            case 'Daily':
-                return true;
-
-            case 'Weekly':
-                // Check if the day of week is in the selected days array
-                const dayOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
-                return habit.selectedDays?.includes(dayOfWeek) || false;
-
-            case 'Monthly':
-                // Check if the day of month is in the selected days array
-                const dayOfMonth = date.getDate().toString();
-                return habit.selectedDays?.includes(dayOfMonth) || false;
-
-            default:
-                return false;
+            // Then delete the category
+            const result = await habitService.deleteCategory(user.uid, id);
+            if (result.result === 'SUCCESS') {
+                setCategories(prev => prev.filter(c => c.id !== id));
+            } else if (result.error) {
+                const errorInfo = processError(result.error, 'Error deleting category', true);
+                setError(errorInfo.message);
+            }
+        } catch (err) {
+            const errorInfo = processError(err, 'Failed to delete category', true);
+            setError(errorInfo.message);
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Context value
-    const contextValue: HabitContextType = {
-        habits,
-        todayHabits,
-        loading,
-        error,
-        selectedCategory,
-        categories,
-        setSelectedCategory,
-        addHabit,
-        updateHabit,
-        deleteHabit,
-        toggleHabitCompletion,
-        getCompletionPercentage,
-        addCategory,
-        updateCategory,
-        deleteCategory,
-        getHabitOccurrences
+    // Wrapper for the utility function to get habit occurrences
+    const getNextHabitOccurrences = (habit: Habit, count = 10): string[] => {
+        return getHabitOccurrences(habit, count);
     };
 
     return (
-        <HabitContext.Provider value={contextValue}>
+        <HabitContext.Provider
+            value={{
+                habits,
+                todayHabits,
+                loading,
+                error,
+                selectedCategory,
+                categories,
+                setSelectedCategory,
+                addHabit,
+                updateHabit,
+                deleteHabit,
+                toggleHabitCompletion,
+                getCompletionPercentage: calculateCompletionPercentage,
+                addCategory,
+                updateCategory,
+                deleteCategory,
+                getHabitOccurrences: getNextHabitOccurrences,
+            }}
+        >
             {children}
         </HabitContext.Provider>
     );
 }
 
-// Hook for consuming the context
 export function useHabits() {
     const context = useContext(HabitContext);
     if (context === undefined) {

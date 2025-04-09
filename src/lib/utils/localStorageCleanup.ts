@@ -1,8 +1,13 @@
 /**
- * Utility function to clean up Firebase-related data from localStorage
- * This helps protect authentication tokens from XSS attacks
+ * Centralized localStorage cleanup utilities for Firebase-related data
+ * Helps protect authentication tokens from XSS attacks
  */
-export const cleanFirebaseLocalStorage = (): void => {
+
+/**
+ * Cleans up Firebase-related data from localStorage
+ * @param {boolean} preserveAuthKeys - Whether to preserve keys needed for auth redirects
+ */
+export const cleanFirebaseLocalStorage = (preserveAuthKeys = false): void => {
   if (typeof window === "undefined") return;
 
   try {
@@ -19,20 +24,18 @@ export const cleanFirebaseLocalStorage = (): void => {
           key.includes("firestore") ||
           key.includes("auth"))
       ) {
-        // Skip keys needed for Google auth redirects
+        // Skip keys needed for Google auth redirects if preserveAuthKeys is true
         if (
-          key.includes("pendingRedirect") ||
-          key.includes("redirectEvent") ||
-          key.includes("authEvent")
+          preserveAuthKeys &&
+          (key.includes("pendingRedirect") ||
+            key.includes("redirectEvent") ||
+            key.includes("authEvent"))
         ) {
           console.log(`Preserving Google auth key: ${key}`);
           continue;
         }
 
         keysToRemove.push(key);
-        console.log(
-          `Found Firebase-related localStorage key to remove: ${key}`,
-        );
       }
     }
 
@@ -40,21 +43,20 @@ export const cleanFirebaseLocalStorage = (): void => {
     keysToRemove.forEach(key => {
       try {
         localStorage.removeItem(key);
-        console.log(`Removed localStorage key: ${key}`);
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`Removed localStorage key: ${key}`);
+        }
       } catch (e) {
         console.warn(`Failed to remove item from localStorage: ${key}`, e);
       }
     });
 
-    // For debugging: Log all keys that still exist after cleanup
-    console.log("Remaining localStorage keys after cleanup:");
-    for (let i = 0; i < localStorage.length; i++) {
-      console.log(`- ${localStorage.key(i)}`);
-    }
+    // Clear Firebase-related IndexedDB databases if possible and not during auth
+    const isAuthRedirect =
+      preserveAuthKeys ||
+      (typeof document !== "undefined" &&
+        document.referrer.includes("accounts.google.com"));
 
-    // Clear Firebase-related IndexedDB databases if possible
-    // But skip this during auth processes
-    const isAuthRedirect = document.referrer.includes("accounts.google.com");
     if (!isAuthRedirect) {
       const idbDatabases = [
         "firebaseLocalStorageDb",
@@ -65,15 +67,28 @@ export const cleanFirebaseLocalStorage = (): void => {
       idbDatabases.forEach(dbName => {
         try {
           indexedDB.deleteDatabase(dbName);
-          console.log(`Deleted IndexedDB database: ${dbName}`);
+          if (process.env.NODE_ENV !== "production") {
+            console.log(`Deleted IndexedDB database: ${dbName}`);
+          }
         } catch (e) {
           console.warn(`Failed to delete IndexedDB database: ${dbName}`, e);
         }
       });
-    } else {
-      console.log("Skipping IndexedDB cleanup due to ongoing auth redirect");
     }
   } catch (e) {
     console.error("Error cleaning Firebase localStorage data:", e);
   }
 };
+
+/**
+ * Immediately invoked function that runs on module import
+ * Can be imported early in the application to clean up before Firebase initializes
+ */
+export const initializeCleanup = (): void => {
+  cleanFirebaseLocalStorage(false);
+};
+
+// Auto-initialize when imported in non-SSR contexts
+if (typeof window !== "undefined") {
+  initializeCleanup();
+}

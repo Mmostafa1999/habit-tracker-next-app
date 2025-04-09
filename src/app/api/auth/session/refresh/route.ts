@@ -39,9 +39,9 @@ export async function GET(request: NextRequest) {
 
     // Set the new session cookie with updated expiry
     cookieStore.set("__session", newSessionCookie, {
-      httpOnly: process.env.NODE_ENV === "production",
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
+      sameSite: "lax",
       maxAge: expiresIn / 1000,
       path: "/",
     });
@@ -49,9 +49,9 @@ export async function GET(request: NextRequest) {
     // Also generate a new CSRF token
     const csrfToken = generateToken();
     cookieStore.set("csrf_token", csrfToken, {
-      httpOnly: process.env.NODE_ENV === "production",
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
+      sameSite: "lax",
       maxAge: 60 * 60, // 1 hour
       path: "/",
     });
@@ -64,9 +64,9 @@ export async function GET(request: NextRequest) {
     // Clear invalid session
     const cookieStore = await cookies();
     cookieStore.set("__session", "", {
-      httpOnly: process.env.NODE_ENV === "production",
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
+      sameSite: "lax",
       maxAge: 0,
       path: "/",
     });

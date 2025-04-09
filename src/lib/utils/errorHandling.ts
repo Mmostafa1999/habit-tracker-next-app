@@ -10,10 +10,18 @@ import {
   createSuccessResult,
 } from "../services/common/types";
 
+// Error type definitions for better type checking
+export type FirebaseError = {
+  code: string;
+  message: string;
+};
+
+export type AppError = Error | FirebaseError | ApiError | string | unknown;
+
 /**
  * Extracts a user-friendly error message from various error types
  */
-export function getErrorMessage(error: unknown): string {
+export function getErrorMessage(error: AppError): string {
   if (typeof error === "string") return error;
 
   if (error instanceof Error) return error.message;
@@ -93,16 +101,40 @@ function getFirestoreErrorMessage(code: string): string {
 }
 
 /**
- * Displays an error message to the user
+ * Core error handler that processes errors and returns standard format
  */
-export function handleError(error: unknown, customMessage?: string): void {
+export function processError(
+  error: AppError,
+  customMessage?: string,
+  showNotification = false,
+): { message: string; code?: string } {
   const message = customMessage || getErrorMessage(error);
-  toast.error(message);
+  const result = {
+    message,
+    code:
+      typeof error === "object" && error !== null && "code" in error
+        ? (error as { code: string }).code
+        : undefined,
+  };
 
-  // Log full error to console for developers
+  // Log in development mode
   if (process.env.NODE_ENV !== "production") {
     console.error("Error details:", error);
   }
+
+  // Show notification if requested
+  if (showNotification) {
+    toast.error(message);
+  }
+
+  return result;
+}
+
+/**
+ * Displays an error message to the user
+ */
+export function handleError(error: AppError, customMessage?: string): void {
+  processError(error, customMessage, true);
 }
 
 /**
@@ -131,16 +163,19 @@ export function showSuccess(message: string): void {
 export async function withErrorHandling<T>(
   operation: () => Promise<T>,
   errorMessage = "An error occurred",
+  showErrorToast = true,
 ): Promise<ServiceResult<T>> {
   try {
     const result = await operation();
     return createSuccessResult(result);
   } catch (error) {
-    handleError(error, errorMessage);
+    const processedError = processError(error, errorMessage, showErrorToast);
+
     if (error instanceof ApiError) {
       return createErrorResult(error);
     }
-    return createErrorResult(getErrorMessage(error));
+
+    return createErrorResult(processedError.message);
   }
 }
 
@@ -148,7 +183,7 @@ export async function withErrorHandling<T>(
  * Convert any error to an ApiError with proper structure
  */
 export function toApiError(
-  error: unknown,
+  error: AppError,
   defaultMessage = "An unexpected error occurred",
 ): ApiError {
   if (error instanceof ApiError) {
@@ -176,36 +211,22 @@ export function toApiError(
 
 /**
  * Handles API errors by showing a toast notification and returning a user-friendly error message
- * Useful for handling errors in async operations like login/signup
+ * @deprecated Use processError(error, customMessage, true) instead
  */
-export function handleApiError(error: unknown, customMessage?: string): string {
-  const errorMessage = customMessage || getErrorMessage(error);
-
-  // Show the error in a toast notification
-  toast.error(errorMessage);
-
-  // Log full error to console for developers
-  if (process.env.NODE_ENV !== "production") {
-    console.error("API Error details:", error);
-  }
-
-  return errorMessage;
+export function handleApiError(
+  error: AppError,
+  customMessage?: string,
+): string {
+  return processError(error, customMessage, true).message;
 }
 
 /**
  * Gets a user-friendly error message without showing a toast notification
- * Use this when toast notifications are already handled elsewhere (e.g., in AuthContext)
+ * @deprecated Use processError(error, customMessage, false) instead
  */
 export function getApiErrorMessage(
-  error: unknown,
+  error: AppError,
   customMessage?: string,
 ): string {
-  const errorMessage = customMessage || getErrorMessage(error);
-
-  // Log full error to console for developers (but no toast)
-  if (process.env.NODE_ENV !== "production") {
-    console.error("API Error details:", error);
-  }
-
-  return errorMessage;
+  return processError(error, customMessage, false).message;
 }

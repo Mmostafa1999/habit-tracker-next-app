@@ -4,9 +4,8 @@ import { useRouter } from "next/navigation";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserProfile } from "../services/auth/authService";
 import { getAuthService } from "../services/serviceFactory";
-import { handleError, showInfo, showSuccess } from "../utils/errorHandling";
+import { processError, showSuccess } from "../utils/errorHandling";
 import { cleanFirebaseLocalStorage } from "../utils/localStorageCleanup";
-
 
 type AuthContextType = {
   user: UserProfile | null;
@@ -28,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Clean localStorage of any Firebase data on initial load
-    cleanFirebaseLocalStorage();
+    cleanFirebaseLocalStorage(true);
 
     // Check for redirect results first (for Google sign-in)
     const checkRedirectResult = async () => {
@@ -40,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           router.push("/dashboard");
         }
       } catch (error) {
-        console.error("Error handling redirect result:", error);
+        processError(error, "Error handling redirect result", false);
       }
     };
 
@@ -69,28 +68,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (result.error) {
         throw result.error;
       }
-    } catch (error: Error | ApiError) {
-      console.error("Authentication error details:", error);
-      // Check for specific Firebase Auth errors and handle them accordingly
-      if ('code' in error) {
-        if (error.code === "auth/invalid-credential" ||
-          error.code === "auth/user-not-found" ||
-          error.code === "auth/wrong-password") {
-          showInfo("Invalid email or password. Please try again.");
-        } else if (error.code === "auth/user-disabled") {
-          showInfo("This account has been disabled. Please contact support.");
-        } else if (error.code === "auth/too-many-requests") {
-          showInfo("Too many failed login attempts. Please try again later or reset your password.");
-        } else if (error.code === "auth/email-not-verified") {
-          showInfo("Please verify your email before logging in. Check your inbox for the verification link.");
-        } else {
-          handleError(error);
-        }
+    } catch (error) {
+      // Special handling for auth-specific errors
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const errorInfo = processError(error, undefined, true);
+        setLoading(false);
+        throw errorInfo;
       } else {
-        handleError(error);
+        const errorInfo = processError(error, "Authentication failed", true);
+        setLoading(false);
+        throw errorInfo;
       }
-      setLoading(false);
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -108,9 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw result.error;
       }
     } catch (error) {
-      handleError(error);
+      const errorInfo = processError(error, "Failed to create account", true);
       setLoading(false);
-      throw error;
+      throw errorInfo;
     } finally {
       setLoading(false);
     }
@@ -124,14 +112,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.result === "SUCCESS") {
         router.push("/auth/login");
         showSuccess("Signed out successfully!");
+
+        // Clean local storage on logout
+        cleanFirebaseLocalStorage(false);
       } else if (result.error) {
         throw result.error;
       }
     } catch (error) {
+      processError(error, "Failed to sign out", true);
       throw error;
-      setLoading(false);
-
-    }finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -146,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw result.error;
       }
     } catch (error) {
+      processError(error, "Failed to send password reset email", true);
       throw error;
     }
   };
@@ -162,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw result.error;
       }
     } catch (error) {
+      processError(error, "Failed to sign in with Google", true);
       setLoading(false);
       throw error;
     }
