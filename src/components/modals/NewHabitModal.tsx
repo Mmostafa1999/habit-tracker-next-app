@@ -254,7 +254,7 @@ export default function NewHabitModal({
                         onClick={() => toggleDay(day)}
                         className={`h-10 w-12 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${selectedDays.includes(day)
                           ? "bg-[#E50046] text-white"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                          : "bg-gray-100 text-gray-700 "
                           }`}>
                         {day}
                       </button>
@@ -266,7 +266,7 @@ export default function NewHabitModal({
               <div className="mb-4">
                 <label
                   htmlFor="date"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  className="block text-sm font-medium text-gray-700  mb-1">
                   Start Date
                 </label>
                 <input
@@ -275,7 +275,7 @@ export default function NewHabitModal({
                   value={date}
                   onChange={e => setDate(e.target.value)}
                   min={today} // Set min attribute to today to prevent past dates
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E50046] focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E50046] focus:border-transparent  "
                   required
                 />
               </div>
@@ -290,7 +290,7 @@ export default function NewHabitModal({
                 />
                 <label
                   htmlFor="enableReminder"
-                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                  className="ml-2 block text-sm text-gray-700 ">
                   Enable Daily Reminder
                 </label>
               </div>
@@ -299,7 +299,7 @@ export default function NewHabitModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-transparent rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-transparent rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 ">
                   Cancel
                 </button>
                 <button
