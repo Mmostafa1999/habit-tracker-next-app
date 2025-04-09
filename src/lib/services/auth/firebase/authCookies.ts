@@ -1,7 +1,6 @@
 /**
  * Sets authentication cookies via server API
  */
-import { getApiErrorMessage } from "@/lib/utils/errorHandling";
 
 export async function setAuthCookies(idToken: string): Promise<void> {
   try {
@@ -32,7 +31,6 @@ export async function setAuthCookies(idToken: string): Promise<void> {
     }
   } catch (error) {
     // Log the error but don't show toast (AuthContext will handle the toast)
-    getApiErrorMessage(error);
     throw error;
   }
 }
@@ -51,7 +49,6 @@ export async function clearAuthCookies(): Promise<void> {
     }
   } catch (error) {
     // Log the error but don't show toast (AuthContext will handle the toast)
-    getApiErrorMessage(error);
     throw error;
   }
 }

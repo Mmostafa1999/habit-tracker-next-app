@@ -165,14 +165,19 @@ export class FirebaseAuthService implements AuthService {
 
   async signInWithGoogle(): Promise<ServiceResult<UserProfile>> {
     try {
-      // Configure Google provider with custom parameters for better cross-domain compatibility
+      // Get the current origin for proper security verification
+      const currentOrigin =
+        typeof window !== "undefined" ? window.location.origin : undefined;
+
+      // Configure Google provider with proper parameters for Vercel production environment
       googleProvider.setCustomParameters({
         prompt: "select_account",
-        // Using fewer parameters for better compatibility
-        ux_mode: "popup",
-        // Include origin verification for security
-        origin:
-          typeof window !== "undefined" ? window.location.origin : undefined,
+        // Ensure proper origin handling for Vercel deployments
+        origin: currentOrigin,
+        // Add client_id from Firebase to ensure proper authorization
+        ...(process.env.NEXT_PUBLIC_FIREBASE_API_KEY && {
+          client_id: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        }),
       });
 
       // Check if this is a sign-in redirect result first
@@ -209,7 +214,8 @@ export class FirebaseAuthService implements AuthService {
         if (
           popupError.code === "auth/cancelled-popup-request" ||
           popupError.code === "auth/popup-blocked" ||
-          popupError.code === "auth/popup-closed-by-user"
+          popupError.code === "auth/popup-closed-by-user" ||
+          popupError.code === "auth/origin-mismatch"
         ) {
           // Start redirect-based sign-in as fallback
           await signInWithRedirect(auth, googleProvider);
