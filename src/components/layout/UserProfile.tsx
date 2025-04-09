@@ -40,6 +40,7 @@ export default function UserProfile({
   // Fetch user profile data from Firestore
   useEffect(() => {
     const fetchUserProfile = async () => {
+      
       if (!user) return;
 
       try {

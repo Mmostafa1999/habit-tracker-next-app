@@ -3,7 +3,6 @@
 import { 
   addDoc, 
   updateDoc, 
-  deleteDoc, 
   doc, 
   serverTimestamp, 
   collection,
@@ -15,7 +14,7 @@ import {
 import { db } from '../firebase/config';
 import { Category } from '../types';
 import { handleError, showSuccess } from '../utils/errorHandling';
-import { createDocRef, batchAddDocuments } from '../utils/firebaseHelpers';
+import {  batchAddDocuments } from '../utils/firebaseHelpers';
 
 // Default categories used when creating a new user
 export const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
