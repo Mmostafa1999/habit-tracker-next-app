@@ -5,6 +5,8 @@ import { getApiErrorMessage } from "@/lib/utils/errorHandling";
 
 export async function setAuthCookies(idToken: string): Promise<void> {
   try {
+    console.log("Setting auth cookies, environment:", process.env.NODE_ENV);
+
     const response = await fetch("/api/auth", {
       method: "POST",
       headers: {
@@ -15,6 +17,12 @@ export async function setAuthCookies(idToken: string): Promise<void> {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("Auth cookie error response:", {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+        isProduction: process.env.NODE_ENV === "production",
+      });
 
       // Try to parse the error data to check for specific errors
       try {
@@ -28,9 +36,14 @@ export async function setAuthCookies(idToken: string): Promise<void> {
         // If we can't parse the error, just use the original error message
       }
 
-      throw new Error("Failed to set authentication cookies");
+      throw new Error(
+        `Failed to set authentication cookies: ${response.status} ${response.statusText}`,
+      );
     }
+
+    console.log("Auth cookies set successfully");
   } catch (error) {
+    console.error("Error setting auth cookies:", error);
     // Log the error but don't show toast (AuthContext will handle the toast)
     getApiErrorMessage(error);
     throw error;

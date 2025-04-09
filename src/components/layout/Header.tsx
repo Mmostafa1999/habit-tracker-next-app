@@ -34,44 +34,38 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <nav className="flex space-x-1 sm:space-x-2">
-              {!user ? (
-                <>
-                  <Link
-                    href="/auth/login"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive("/auth/login")
-                        ? "text-primary bg-primary/5 "
-                        : "text-gray-700  hover:text-primary  hover:bg-primary/5 "
-                      }`}>
-                    Login
-                  </Link>
-                  <Link
-                    href="/auth/signup"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive("/auth/signup")
-                        ? "text-primary bg-primary/5 "
-                        : "text-gray-700  hover:text-primary  hover:bg-primary/5 "
-                      }`}>
-                    Sign Up
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive("/dashboard")
-                        ? "text-primary bg-primary/5 "
-                        : "text-gray-700  hover:text-primary  hover:bg-primary/5 "
-                      }`}>
-                    Dashboard
-                  </Link>
-                  <button
-                    onClick={() => logOut()}
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary  hover:bg-primary/5  transition-all duration-200">
-                    Log out
-                  </button>
-                </>
-              )}
-            </nav>
+          <nav className="flex space-x-1 sm:space-x-2">
+  {!user ? (
+    <>
+      <Link
+        href="/auth/login"
+        className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+          isActive("/auth/login")
+            ? "text-primary bg-primary/5"
+            : "text-gray-700 hover:text-primary hover:bg-primary/5"
+        }`}>
+        Login
+      </Link>
+      <Link
+        href="/auth/signup"
+        className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+          isActive("/auth/signup")
+            ? "text-primary bg-primary/5"
+            : "text-gray-700 hover:text-primary hover:bg-primary/5"
+        }`}>
+        Sign Up
+      </Link>
+    </>
+  ) : (
+    <>
+      <button
+        onClick={logOut}
+        className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-100 transition-all duration-200">
+        Logout
+      </button>
+    </>
+  )}
+</nav>
 
 
           </div>

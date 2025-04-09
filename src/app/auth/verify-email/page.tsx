@@ -76,21 +76,27 @@ export default function VerifyEmailPage() {
         }
     };
 
-    const handleContinue = () => {
-        router.push(callbackUrl);
+    const handleBackToLogin = () => {
+        router.push("/auth/login");
     };
 
     return (
         <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
             <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-8">
                 <div className="space-y-1 text-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Verify Your Email</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Email Verification Required</h1>
                     <p className="text-gray-600">
                         We've sent a verification link to <span className="font-medium">{email}</span>
                     </p>
                 </div>
 
                 <div className="space-y-4">
+                    <div className="bg-yellow-50 p-4 rounded-md border border-yellow-100">
+                        <p className="text-sm text-yellow-800 font-medium">
+                            You must verify your email before you can access the application.
+                        </p>
+                    </div>
+
                     <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
                         <p className="text-sm text-blue-800">
                             Please check your email and click the verification link to activate your account.
@@ -130,12 +136,23 @@ export default function VerifyEmailPage() {
                     >
                         {isResending ? "Sending..." : resendSuccess ? "Email Sent" : "Resend Verification Email"}
                     </Button>
-                    <Button
-                        onClick={handleContinue}
-                        fullWidth
-                    >
-                        Continue to App
-                    </Button>
+
+                    {emailVerified === "true" ? (
+                        <Button
+                            onClick={() => router.push(callbackUrl)}
+                            fullWidth
+                        >
+                            Continue to App
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handleBackToLogin}
+                            variant="outline"
+                            fullWidth
+                        >
+                            Back to Login
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>

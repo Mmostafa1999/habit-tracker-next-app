@@ -50,9 +50,9 @@ export async function GET() {
 
   const cookieStore = await cookies();
   cookieStore.set("csrf_token", csrfToken, {
-    httpOnly: process.env.NODE_ENV === "production",
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    sameSite: "strict",
     maxAge: CSRF_TOKEN_EXPIRY / 1000,
     path: "/",
   });
@@ -69,60 +69,85 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for") || "unknown";
     const rateLimitCheck = checkRateLimit(ip);
     if (!rateLimitCheck.allowed) {
-      return NextResponse.json({ error: rateLimitCheck.message }, { status: 429 });
-    }
-
-    const body = await request.json();
-    const { idToken } = body;
-    if (!idToken) {
-      return NextResponse.json({ error: "No ID token provided" }, { status: 400 });
-    }
-
-    // Verify the token before proceeding
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-
-    if (
-      decodedToken.firebase.sign_in_provider === "password" &&
-      !decodedToken.email_verified
-    ) {
       return NextResponse.json(
-        {
-          error: "Email not verified",
-          message: "Please verify your email before logging in.",
-        },
-        { status: 403 },
+        { error: rateLimitCheck.message },
+        { status: 429 },
       );
     }
 
-    const expiresIn = 60 * 60 * 24 * 14 * 1000; // 2 weeks
-    const sessionCookie = await adminAuth.createSessionCookie(idToken, {
-      expiresIn,
-    });
+    const { idToken } = await request.json();
+    if (!idToken) {
+      return NextResponse.json(
+        { error: "No ID token provided" },
+        { status: 400 },
+      );
+    }
 
-    const cookieStore = await cookies();
+    console.log(
+      "Verifying ID token in production:",
+      process.env.NODE_ENV === "production",
+    );
 
-    cookieStore.set("__session", sessionCookie, {
-      httpOnly: process.env.NODE_ENV === "production",
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
-      maxAge: expiresIn / 1000,
-      path: "/",
-    });
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
 
-    const csrfToken = generateCsrfToken();
-    cookieStore.set("csrf_token", csrfToken, {
-      httpOnly: process.env.NODE_ENV === "production",
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
-      maxAge: CSRF_TOKEN_EXPIRY / 1000,
-      path: "/",
-    });
+      if (
+        decodedToken.firebase.sign_in_provider === "password" &&
+        !decodedToken.email_verified
+      ) {
+        return NextResponse.json(
+          {
+            error: "Email not verified",
+            message: "Please verify your email before logging in.",
+          },
+          { status: 403 },
+        );
+      }
 
-    return NextResponse.json({ status: "success" });
-  } catch (error) {
+      const expiresIn = 60 * 60 * 24 * 14 * 1000; // 2 weeks
+      const sessionCookie = await adminAuth.createSessionCookie(idToken, {
+        expiresIn,
+      });
+
+      const cookieStore = await cookies();
+
+      cookieStore.set("__session", sessionCookie, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: expiresIn / 1000,
+        path: "/",
+      });
+
+      const csrfToken = generateCsrfToken();
+      cookieStore.set("csrf_token", csrfToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: expiresIn / 1000,
+        path: "/",
+      });
+
+      return NextResponse.json({ status: "success" });
+    } catch (tokenError: any) {
+      console.error("Token verification error:", tokenError);
+      return NextResponse.json(
+        {
+          error: "Invalid token",
+          message: tokenError.message,
+          code: tokenError.code,
+        },
+        { status: 401 },
+      );
+    }
+  } catch (error: any) {
     console.error("Authentication error:", error);
     return NextResponse.json(
-      { error: "Authentication failed" },
+      {
+        error: "Authentication failed",
+        message: error.message || "Unknown error",
+        code: error.code || "unknown",
+      },
       { status: 401 },
     );
   }
@@ -132,17 +157,17 @@ export async function POST(request: NextRequest) {
 export async function DELETE() {
   const cookieStore = await cookies();
   cookieStore.set("__session", "", {
-    httpOnly: process.env.NODE_ENV === "production",
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    sameSite: "strict",
     maxAge: 0,
     path: "/",
   });
 
   cookieStore.set("csrf_token", "", {
-    httpOnly: process.env.NODE_ENV === "production",
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "None",
+    sameSite: "strict",
     maxAge: 0,
     path: "/",
   });
