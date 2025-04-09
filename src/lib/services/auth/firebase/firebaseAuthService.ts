@@ -165,8 +165,15 @@ export class FirebaseAuthService implements AuthService {
 
   async signInWithGoogle(): Promise<ServiceResult<UserProfile>> {
     try {
-      // Configure Google provider with custom parameters
-      googleProvider.setCustomParameters({ prompt: "select_account" });
+      // Configure Google provider with custom parameters for better cross-domain compatibility
+      googleProvider.setCustomParameters({
+        prompt: "select_account",
+        // Using fewer parameters for better compatibility
+        ux_mode: "popup",
+        // Include origin verification for security
+        origin:
+          typeof window !== "undefined" ? window.location.origin : undefined,
+      });
 
       // Check if this is a sign-in redirect result first
       const result = await getRedirectResult(auth);
@@ -192,16 +199,18 @@ export class FirebaseAuthService implements AuthService {
 
         return createSuccessResult(mapUserToProfile(user));
       } catch (popupError: any) {
+        console.error(
+          "Popup sign-in error:",
+          popupError.code,
+          popupError.message,
+        );
+
         // If popup fails, fall back to redirect
         if (
           popupError.code === "auth/cancelled-popup-request" ||
           popupError.code === "auth/popup-blocked" ||
           popupError.code === "auth/popup-closed-by-user"
         ) {
-          console.log(
-            "Popup failed, falling back to redirect:",
-            popupError.code,
-          );
           // Start redirect-based sign-in as fallback
           await signInWithRedirect(auth, googleProvider);
 
@@ -220,20 +229,10 @@ export class FirebaseAuthService implements AuthService {
         throw popupError;
       }
     } catch (error: any) {
-      // Enhanced error logging for production debugging
       console.error(
         "Firebase auth error during Google sign-in:",
         error.code,
         error.message,
-        "Additional info:",
-        {
-          errorName: error.name,
-          errorStack: error.stack,
-          isProduction: process.env.NODE_ENV === "production",
-          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-          origin:
-            typeof window !== "undefined" ? window.location.origin : "unknown",
-        },
       );
 
       // Handle specific auth errors
@@ -243,17 +242,6 @@ export class FirebaseAuthService implements AuthService {
             "An account already exists with the same email but different sign-in method.",
             error.code,
             400,
-          ),
-        );
-      }
-
-      // Add more specific error handling for common OAuth issues
-      if (error.code === "auth/unauthorized-domain") {
-        return createErrorResult(
-          new ApiError(
-            "This domain is not authorized for OAuth operations. Please verify your Firebase Console settings.",
-            error.code,
-            401,
           ),
         );
       }

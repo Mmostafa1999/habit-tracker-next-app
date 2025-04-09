@@ -69,6 +69,11 @@ console.log("Firebase config loaded:", {
     !!firebaseConfig.authDomain &&
     !!firebaseConfig.projectId &&
     !!firebaseConfig.appId,
+  // Log the auth domain for debugging in production (masked)
+  authDomainHint: firebaseConfig.authDomain
+    ? `${firebaseConfig.authDomain.substring(0, 4)}...${firebaseConfig.authDomain.substring(firebaseConfig.authDomain.length - 8)}`
+    : "missing",
+  environment: process.env.NODE_ENV,
 });
 
 // Initialize Firebase
@@ -77,6 +82,8 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: "select_account",
+  // Ensure we set the origin for production auth redirects
+  origin: typeof window !== "undefined" ? window.location.origin : undefined,
 });
 
 // Initialize Firestore with optimized settings

@@ -52,7 +52,7 @@ export async function GET() {
   cookieStore.set("csrf_token", csrfToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: CSRF_TOKEN_EXPIRY / 1000,
     path: "/",
   });
@@ -83,71 +83,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(
-      "Verifying ID token in production:",
-      process.env.NODE_ENV === "production",
-    );
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
 
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(idToken);
-
-      if (
-        decodedToken.firebase.sign_in_provider === "password" &&
-        !decodedToken.email_verified
-      ) {
-        return NextResponse.json(
-          {
-            error: "Email not verified",
-            message: "Please verify your email before logging in.",
-          },
-          { status: 403 },
-        );
-      }
-
-      const expiresIn = 60 * 60 * 24 * 14 * 1000; // 2 weeks
-      const sessionCookie = await adminAuth.createSessionCookie(idToken, {
-        expiresIn,
-      });
-
-      const cookieStore = await cookies();
-
-      cookieStore.set("__session", sessionCookie, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: expiresIn / 1000,
-        path: "/",
-      });
-
-      const csrfToken = generateCsrfToken();
-      cookieStore.set("csrf_token", csrfToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: expiresIn / 1000,
-        path: "/",
-      });
-
-      return NextResponse.json({ status: "success" });
-    } catch (tokenError: any) {
-      console.error("Token verification error:", tokenError);
+    if (
+      decodedToken.firebase.sign_in_provider === "password" &&
+      !decodedToken.email_verified
+    ) {
       return NextResponse.json(
         {
-          error: "Invalid token",
-          message: tokenError.message,
-          code: tokenError.code,
+          error: "Email not verified",
+          message: "Please verify your email before logging in.",
         },
-        { status: 401 },
+        { status: 403 },
       );
     }
-  } catch (error: any) {
+
+    const expiresIn = 60 * 60 * 24 * 14 * 1000; // 2 weeks
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, {
+      expiresIn,
+    });
+
+    const cookieStore = await cookies();
+
+    cookieStore.set("__session", sessionCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: expiresIn / 1000,
+      path: "/",
+    });
+
+    const csrfToken = generateCsrfToken();
+    cookieStore.set("csrf_token", csrfToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: expiresIn / 1000,
+      path: "/",
+    });
+
+    return NextResponse.json({ status: "success" });
+  } catch (error) {
     console.error("Authentication error:", error);
     return NextResponse.json(
-      {
-        error: "Authentication failed",
-        message: error.message || "Unknown error",
-        code: error.code || "unknown",
-      },
+      { error: "Authentication failed" },
       { status: 401 },
     );
   }
@@ -159,7 +138,7 @@ export async function DELETE() {
   cookieStore.set("__session", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 0,
     path: "/",
   });
@@ -167,7 +146,7 @@ export async function DELETE() {
   cookieStore.set("csrf_token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 0,
     path: "/",
   });
