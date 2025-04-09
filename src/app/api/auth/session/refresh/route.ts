@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     cookieStore.set("__session", newSessionCookie, {
       httpOnly: process.env.NODE_ENV === "production",
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "None",
       maxAge: expiresIn / 1000,
       path: "/",
     });
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     cookieStore.set("csrf_token", csrfToken, {
       httpOnly: process.env.NODE_ENV === "production",
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "None",
       maxAge: 60 * 60, // 1 hour
       path: "/",
     });
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     cookieStore.set("__session", "", {
       httpOnly: process.env.NODE_ENV === "production",
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "None",
       maxAge: 0,
       path: "/",
     });

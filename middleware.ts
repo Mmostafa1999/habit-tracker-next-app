@@ -47,6 +47,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Always let authentication pages load regardless of auth status
+  if (
+    pathname === "/" ||
+    pathname === "/auth/login" ||
+    pathname === "/auth/signup" ||
+    pathname === "/auth/forgot-password"
+  ) {
+    return NextResponse.next();
+  }
+
   try {
     // Check if the user is authenticated by calling the verification API
     const verifyResponse = await fetch(
@@ -70,15 +80,20 @@ export async function middleware(request: NextRequest) {
     }
 
     // Email verification check for authenticated users
-    if (valid && protectedRoutes.some(route => pathname.startsWith(route))) {
-      // Verify if email is verified
+    if (valid) {
+      // Verify if email is verified - do this for ALL routes, not just protected ones
       const userVerifyResponse = await fetch(
         new URL("/api/auth/user", request.url),
       );
       const userData = await userVerifyResponse.json();
 
-      // If email is not verified and user is trying to access protected routes
+      // If email is not verified, redirect to verification page
       if (userData.user && !userData.user.emailVerified) {
+        // Skip verification check for specific routes like verify-email page itself
+        if (pathname === "/auth/verify-email") {
+          return NextResponse.next();
+        }
+
         // Set a cookie to track verification was attempted to prevent loops
         const response = NextResponse.redirect(
           new URL(

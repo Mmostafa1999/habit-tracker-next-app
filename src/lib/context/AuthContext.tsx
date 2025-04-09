@@ -63,6 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await authService.signInWithEmail(email, password);
 
       if (result.result === "SUCCESS" && result.data) {
+        // Check if email is verified
+        if (!result.data.emailVerified) {
+          showSuccess("Please check your email and verify your account before logging in.");
+          setLoading(false);
+          throw new Error("Email not verified");
+        }
+
         showSuccess("Signed in successfully!");
         router.push("/dashboard");
       } else if (result.error) {
@@ -71,9 +78,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       // Special handling for auth-specific errors
       if (typeof error === 'object' && error !== null && 'code' in error) {
+        const errorCode = (error as { code: string }).code;
+        const errorMessage = 'message' in error ? (error as { message: string }).message : '';
+
+        if (errorCode === 'auth/email-not-verified' || errorMessage.includes('Email not verified')) {
+          // Specific handling for email verification errors
+          showSuccess("A verification email has been sent. Please check your inbox and verify your account.");
+          setLoading(false);
+          throw error;
+        }
         const errorInfo = processError(error, undefined, true);
         setLoading(false);
         throw errorInfo;
+      } else if (error instanceof Error && error.message.includes('Email not verified')) {
+        // Handle case where we explicitly throw an "Email not verified" error
+        setLoading(false);
+        throw error;
       } else {
         const errorInfo = processError(error, "Authentication failed", true);
         setLoading(false);
