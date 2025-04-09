@@ -30,4 +30,4 @@ export function cleanFirebaseLocalStorage(): void {
       localStorage.removeItem(key);
     }
   }
-} 
+}

@@ -3,7 +3,6 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { setAuthCookies } from "./authCookies";
 import { mapUserToProfile } from "./userProfileUtils";
-import { UserProfile } from "../authService";
 import { initializeUserData } from "./userDataInitialization";
 
 /**
